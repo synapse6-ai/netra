@@ -33,18 +33,24 @@ spec:
           annotations:
             summary: "Oldest queued job age > 5m on {{ $labels.service }}/{{ $labels.queue }} ({{ $labels.environment }})"
             description: "Oldest pending job in queue {{ $labels.queue }} for {{ $labels.service }} has been waiting more than 5 minutes."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-workers"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/worker-queue-age-high.md"
+            dashboard_url: "/d/netra-python-workers"
+            runbook_url:   "runbooks/worker-queue-age-high.md"
 
         - alert: WorkerFailureRateHigh
           expr: |
-            sum by (service, environment, namespace) (
-              rate(worker_jobs_total{status="failed"}[15m])
-            )
-            /
+            (
+              sum by (service, environment, namespace) (
+                rate(worker_jobs_total{status="failed"}[15m])
+              )
+              /
+              sum by (service, environment, namespace) (
+                rate(worker_jobs_total[15m])
+              )
+            ) > 0.05
+            and on (service, environment, namespace)
             sum by (service, environment, namespace) (
               rate(worker_jobs_total[15m])
-            ) > 0.05
+            ) > 0
           for: 15m
           labels:
             severity: critical
@@ -53,8 +59,8 @@ spec:
           annotations:
             summary: "Worker failure rate > 5% on {{ $labels.service }} ({{ $labels.environment }})"
             description: "More than 5% of jobs failed in {{ $labels.service }} in {{ $labels.environment }} over the last 15m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-workers"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/worker-failures-high.md"
+            dashboard_url: "/d/netra-python-workers"
+            runbook_url:   "runbooks/worker-failures-high.md"
 
         - alert: WorkerRetrySpike
           expr: |
@@ -69,8 +75,8 @@ spec:
           annotations:
             summary: "Worker retry spike on {{ $labels.service }} ({{ $labels.environment }})"
             description: "Worker is retrying more than 1 job/sec on {{ $labels.service }} in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-workers"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/worker-failures-high.md"
+            dashboard_url: "/d/netra-python-workers"
+            runbook_url:   "runbooks/worker-failures-high.md"
 
         - alert: WorkerThroughputDrop
           expr: |
@@ -89,5 +95,5 @@ spec:
           annotations:
             summary: "Worker throughput dropped >50% on {{ $labels.service }} ({{ $labels.environment }})"
             description: "Job throughput for {{ $labels.service }} in {{ $labels.environment }} is less than half its 1h average for 15m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-workers"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/worker-queue-age-high.md"
+            dashboard_url: "/d/netra-python-workers"
+            runbook_url:   "runbooks/worker-queue-age-high.md"

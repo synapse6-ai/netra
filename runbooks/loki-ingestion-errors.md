@@ -23,7 +23,7 @@ emergency.
   ```sh
   kubectl logs -n observability statefulset/netra-loki -c loki --tail=200
   ```
-- Object storage health (GCS bucket: `REPLACE_ME_LOKI_GCS_BUCKET`).
+- Object storage health (GCS bucket: `netra-loki-data` in default values).
 
 ## Immediate actions
 
@@ -34,7 +34,7 @@ emergency.
      wget -qO- -H "Metadata-Flavor: Google" \
      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
    # Bucket access (from a workstation with gcloud):
-   gsutil ls "gs://REPLACE_ME_LOKI_GCS_BUCKET/" | head
+   gsutil ls "gs://netra-loki-data/" | head
    ```
 2. Check Loki ingester memory / CPU — is it OOMing? See
    `pod-crashlooping.md`.

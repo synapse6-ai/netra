@@ -13,21 +13,22 @@
 
 fullnameOverride: netra-kps
 
-# Cluster + environment labels are added by external_labels on Prometheus
-# below so every metric carries env/cluster context.
+# Prometheus stamps cluster on stack metrics only. App environment
+# (dev/stage/prod) comes from pod labels — Netra has no env of its own.
 
 defaultRules:
   create: true
   rules:
-    # We ship our own PrometheusRules under manifests/prometheus/prometheusrules/.
-    # Keep the chart's built-in rules for Kubernetes/etcd basics.
+    # Custom PrometheusRules under manifests/prometheus/prometheusrules/ are
+    # authoritative for app + platform alerts. Disable chart groups that
+    # overlap (KubePodCrashLooping, Node* from node-exporter, etc.).
     etcd: true
-    kubernetesApps: true
+    kubernetesApps: false
     kubernetesResources: true
     kubernetesStorage: true
     kubernetesSystem: true
     kubeStateMetrics: true
-    nodeExporterAlerting: true
+    nodeExporterAlerting: false
     nodeExporterRecording: true
     prometheus: true
     prometheusOperator: true
@@ -59,15 +60,15 @@ prometheus:
     probeNamespaceSelector: {}
     probeSelector: {}
 
-    # Every metric carries env + cluster as external labels.
+    # Cluster identity for the observability stack. Do not set environment
+    # here — apps carry dev/stage/prod via pod labels (see app-integration.md).
     externalLabels:
-      cluster: REPLACE_ME_CLUSTER_NAME
-      environment: REPLACE_ME_ENVIRONMENT   # dev | stage | prod
+      cluster: netra
 
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: REPLACE_ME_SSD_STORAGECLASS
+          storageClassName: standard
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -105,7 +106,7 @@ alertmanager:
     storage:
       volumeClaimTemplate:
         spec:
-          storageClassName: REPLACE_ME_SSD_STORAGECLASS
+          storageClassName: standard
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -159,7 +160,7 @@ grafana:
   # Admin password sourced from a pre-created Secret. Do not put the
   # password in this file.
   admin:
-    existingSecret: REPLACE_ME_GRAFANA_ADMIN_SECRET
+    existingSecret: netra-grafana-admin
     userKey: admin-user
     passwordKey: admin-password
 
@@ -227,7 +228,7 @@ grafana:
   persistence:
     enabled: true
     type: pvc
-    storageClassName: REPLACE_ME_SSD_STORAGECLASS
+    storageClassName: standard
     size: 10Gi
     accessModes: ["ReadWriteOnce"]
 

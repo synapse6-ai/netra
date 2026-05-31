@@ -33,9 +33,9 @@ loki:
   storage:
     type: gcs
     bucketNames:
-      chunks: REPLACE_ME_LOKI_GCS_BUCKET
-      ruler:  REPLACE_ME_LOKI_GCS_BUCKET
-      admin:  REPLACE_ME_LOKI_GCS_BUCKET
+      chunks: netra-loki-data
+      ruler:  netra-loki-data
+      admin:  netra-loki-data
     gcs:
       chunkBufferSize: 0
       requestTimeout: "0s"
@@ -81,7 +81,7 @@ singleBinary:
       memory: 4Gi
   persistence:
     enabled: true
-    storageClass: REPLACE_ME_SSD_STORAGECLASS
+    storageClass: standard
     size: 20Gi                  # Local WAL/cache only; bulk data is in GCS.
   nodeSelector:
     workload: observability
@@ -91,12 +91,10 @@ singleBinary:
       value: observability
       effect: NoSchedule
 
-# GCS access via GKE Workload Identity. Bind this KSA to a GSA that has
-# roles/storage.objectAdmin on the Loki bucket. No static keys, no Secret.
+# For GKE Workload Identity, set iam.gke.io/gcp-service-account on this SA.
 serviceAccount:
   create: true
-  annotations:
-    iam.gke.io/gcp-service-account: REPLACE_ME_LOKI_GCP_SERVICE_ACCOUNT
+  annotations: {}
 
 # Disable other deployment modes.
 read:

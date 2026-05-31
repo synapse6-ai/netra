@@ -12,7 +12,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_distributor_lines_received_total[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"observability\"}[5m]))", "refId": "A"}],
       "title": "Lines received/s",
       "type": "stat"
     },
@@ -22,7 +22,7 @@
       "id": 2,
       "fieldConfig": {"defaults": {"unit": "Bps"}},
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_distributor_bytes_received_total[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_distributor_bytes_received_total{namespace=\"observability\"}[5m]))", "refId": "A"}],
       "title": "Bytes received/s",
       "type": "stat"
     },
@@ -31,7 +31,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_request_duration_seconds_count{status_code=~\"5..\"}[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_request_duration_seconds_count{namespace=\"observability\", status_code=~\"5..\"}[5m]))", "refId": "A"}],
       "title": "5xx/s",
       "type": "stat"
     },
@@ -40,7 +40,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(up{job=~\".*loki.*\"})", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(up{job=~\".*loki.*\", namespace=\"observability\"})", "refId": "A"}],
       "title": "Loki targets up",
       "type": "stat"
     },
@@ -49,7 +49,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
       "id": 5,
       "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count[5m]))", "refId": "A", "legendFormat": "{{route}} {{status_code}}"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count{namespace=\"observability\"}[5m]))", "refId": "A", "legendFormat": "{{route}} {{status_code}}"}],
       "title": "Loki request rate by route/status",
       "type": "timeseries"
     }

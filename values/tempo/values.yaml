@@ -30,12 +30,14 @@ tempo:
     trace:
       backend: gcs
       gcs:
-        bucket_name:       REPLACE_ME_TEMPO_GCS_BUCKET
+        bucket_name:       netra-tempo-data
         chunk_buffer_size: 10485760   # 10 MiB
         # Auth: GKE Workload Identity via serviceAccount.annotations below.
         # The GCS client uses Application Default Credentials — no keys here.
 
-  # OTLP receivers. App services and the OTel Collector both push here.
+  # OTLP receivers for the OpenTelemetry Collector only. Apps must send
+  # traces to netra-otel-collector, not here directly. NetworkPolicy
+  # netra-tempo-ingress enforces this at the pod level.
   receivers:
     otlp:
       protocols:
@@ -52,7 +54,7 @@ tempo:
 
 persistence:
   enabled: true
-  storageClassName: REPLACE_ME_SSD_STORAGECLASS
+  storageClassName: standard
   size: 20Gi                    # WAL only; bulk data is in GCS.
 
 nodeSelector:
@@ -66,12 +68,10 @@ tolerations:
 service:
   type: ClusterIP
 
-# GCS access via GKE Workload Identity. Bind this KSA to a GSA that has
-# roles/storage.objectAdmin on the Tempo bucket. No static keys, no Secret.
+# For GKE Workload Identity, set iam.gke.io/gcp-service-account on this SA.
 serviceAccount:
   create: true
-  annotations:
-    iam.gke.io/gcp-service-account: REPLACE_ME_TEMPO_GCP_SERVICE_ACCOUNT
+  annotations: {}
 
 serviceMonitor:
   enabled: true

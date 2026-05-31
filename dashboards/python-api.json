@@ -83,7 +83,7 @@
   "tags": ["netra", "services", "python-api"],
   "templating": {
     "list": [
-      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(up, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(up, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
+      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(http_requests_total{scrape_class=\"api\"}, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(http_requests_total{scrape_class=\"api\"}, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
       {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(http_requests_total{environment=~\"$environment\", scrape_class=\"api\"}, service)", "hide": 0, "includeAll": true, "label": "service", "multi": true, "name": "service", "options": [], "query": {"qryType": 1, "query": "label_values(http_requests_total{environment=~\"$environment\", scrape_class=\"api\"}, service)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
     ]
   },

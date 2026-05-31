@@ -27,10 +27,10 @@ spec:
             service: loki
             team: platform
           annotations:
-            summary: "Loki ingestion errors ({{ $labels.environment }})"
-            description: "Loki push handler is returning 5xx errors in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-loki-health"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/loki-ingestion-errors.md"
+            summary: "Loki ingestion errors"
+            description: "Loki push handler is returning 5xx errors for 10m."
+            dashboard_url: "/d/netra-loki-health"
+            runbook_url:   "runbooks/loki-ingestion-errors.md"
 
         - alert: TempoIngestionErrors
           expr: |
@@ -43,10 +43,10 @@ spec:
             service: tempo
             team: platform
           annotations:
-            summary: "Tempo ingestion errors ({{ $labels.environment }})"
-            description: "Tempo ingest path is returning 5xx errors in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-tempo-health"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/tempo-ingestion-errors.md"
+            summary: "Tempo ingestion errors"
+            description: "Tempo ingest path is returning 5xx errors for 10m."
+            dashboard_url: "/d/netra-tempo-health"
+            runbook_url:   "runbooks/tempo-ingestion-errors.md"
 
         - alert: AlloyDown
           expr: |
@@ -57,10 +57,10 @@ spec:
             service: alloy
             team: platform
           annotations:
-            summary: "Alloy target down: {{ $labels.instance }} ({{ $labels.environment }})"
+            summary: "Alloy target down: {{ $labels.instance }}"
             description: "Alloy collector {{ $labels.instance }} has been down for more than 5 minutes — logs and RUM are not being shipped."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-alloy-health"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/loki-ingestion-errors.md"
+            dashboard_url: "/d/netra-alloy-health"
+            runbook_url:   "runbooks/alloy-down.md"
 
         - alert: PrometheusStorageHigh
           expr: |
@@ -75,7 +75,7 @@ spec:
             service: prometheus
             team: platform
           annotations:
-            summary: "Prometheus storage > 80% ({{ $labels.environment }})"
+            summary: "Prometheus storage > 80%"
             description: "Prometheus on {{ $labels.instance }} is using more than 80% of its PVC for more than 30m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-prometheus-health"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/loki-ingestion-errors.md"
+            dashboard_url: "/d/netra-prometheus-health"
+            runbook_url:   "runbooks/prometheus-storage-high.md"

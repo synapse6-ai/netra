@@ -24,7 +24,7 @@ unreachable for 5 minutes (`PythonApiTargetDown`).
 
 1. Confirm scope: one environment or all? One service or many?
 2. Look at the top failing endpoints:
-   - Grafana panel `Requests by status` with `path` breakdown.
+   - Grafana panel `Requests by status` (filter by `service`).
 3. Check upstream dependencies: DB pool, cache, downstream API.
 4. Correlate with recent deploys (Argo / Helm / kubectl rollout history).
 

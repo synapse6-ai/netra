@@ -1,14 +1,13 @@
 ---
 # OPA alerts.
 #
-# Series come from OPA's Prometheus exposition (default /metrics).
+# Series come from OPA's built-in Prometheus exposition (/metrics):
 #   up{job=~".*opa.*"}
-#   http_request_duration_seconds_bucket{handler="v1/data", ...}
-#   opa_decisions_total{decision="allow|deny|error"}
-#   opa_bundle_load_success / opa_bundle_load_duration_seconds
+#   http_request_duration_seconds_{bucket,count,sum}{handler,code,...}
+#   bundle_failed_load_counter{name=...}
 #
-# The OPA metrics Service these alerts depend on is provided by any service
-# deploying OPA, per the contract (docs/app-integration.md).
+# OPA does NOT export opa_decisions_total by default. Use HTTP status
+# codes and bundle metrics instead. See docs/app-integration.md.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -33,8 +32,8 @@ spec:
           annotations:
             summary: "OPA target down: {{ $labels.instance }} ({{ $labels.environment }})"
             description: "OPA target {{ $labels.instance }} has been down for more than 5 minutes."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-opa"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/opa-decision-errors.md"
+            dashboard_url: "/d/netra-opa"
+            runbook_url:   "runbooks/opa-decision-errors.md"
 
         - alert: OpaDecisionLatencyHigh
           expr: |
@@ -52,32 +51,38 @@ spec:
           annotations:
             summary: "OPA p95 decision latency > 50ms ({{ $labels.environment }})"
             description: "OPA p95 decision latency on handler {{ $labels.handler }} is above 50ms in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-opa"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/opa-latency-high.md"
+            dashboard_url: "/d/netra-opa"
+            runbook_url:   "runbooks/opa-latency-high.md"
 
-        - alert: OpaDecisionErrorRateHigh
+        - alert: OpaHttp5xxRateHigh
           expr: |
-            sum by (environment, namespace) (
-              rate(opa_decisions_total{decision="error"}[5m])
-            )
-            /
-            sum by (environment, namespace) (
-              rate(opa_decisions_total[5m])
+            (
+              sum by (environment, namespace) (
+                rate(http_request_duration_seconds_count{job=~".*opa.*", code=~"5.."}[5m])
+              )
+              /
+              sum by (environment, namespace) (
+                rate(http_request_duration_seconds_count{job=~".*opa.*"}[5m])
+              )
             ) > 0.01
+            and on (environment, namespace)
+            sum by (environment, namespace) (
+              rate(http_request_duration_seconds_count{job=~".*opa.*"}[5m])
+            ) > 0.1
           for: 10m
           labels:
             severity: critical
             service: opa
             team: platform
           annotations:
-            summary: "OPA decision error rate > 1% ({{ $labels.environment }})"
-            description: "OPA decision error rate is above 1% in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-opa"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/opa-decision-errors.md"
+            summary: "OPA HTTP 5xx rate > 1% ({{ $labels.environment }})"
+            description: "OPA HTTP 5xx rate is above 1% in {{ $labels.environment }} for 10m."
+            dashboard_url: "/d/netra-opa"
+            runbook_url:   "runbooks/opa-decision-errors.md"
 
         - alert: OpaBundleLoadFailure
           expr: |
-            increase(opa_bundle_load_success{success="false"}[15m]) > 0
+            increase(bundle_failed_load_counter{job=~".*opa.*"}[15m]) > 0
           for: 5m
           labels:
             severity: critical
@@ -86,5 +91,5 @@ spec:
           annotations:
             summary: "OPA bundle load failed on {{ $labels.name }} ({{ $labels.environment }})"
             description: "OPA failed to load bundle {{ $labels.name }} in {{ $labels.environment }} within the last 15m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-opa"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/opa-decision-errors.md"
+            dashboard_url: "/d/netra-opa"
+            runbook_url:   "runbooks/opa-decision-errors.md"

@@ -12,16 +12,16 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(up{job=~\".*alloy.*\"})", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(up{job=~\".*alloy.*\", namespace=\"observability\"})", "refId": "A"}],
       "title": "Alloy pods up",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "netra-prometheus"},
       "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-      "id": 2,
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_source_kubernetes_events_log_bytes_total[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_write_sent_bytes_total{namespace=\"observability\"}[5m]))", "refId": "A"}],
       "title": "Log bytes shipped/s",
       "type": "stat"
     },
@@ -30,7 +30,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_write_dropped_entries_total[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(loki_write_dropped_entries_total{namespace=\"observability\"}[5m]))", "refId": "A"}],
       "title": "Dropped log entries/s",
       "type": "stat"
     },
@@ -39,7 +39,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(faro_receiver_logs_total[5m]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(faro_receiver_logs_total{namespace=\"observability\"}[5m]))", "refId": "A"}],
       "title": "RUM events/s",
       "type": "stat"
     },
@@ -48,7 +48,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
       "id": 5,
       "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "rate(loki_write_sent_entries_total[5m])", "refId": "A", "legendFormat": "{{instance}}"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "rate(loki_write_sent_entries_total{namespace=\"observability\"}[5m])", "refId": "A", "legendFormat": "{{instance}}"}],
       "title": "Entries sent to Loki",
       "type": "timeseries"
     }

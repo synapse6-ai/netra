@@ -1,14 +1,15 @@
-# PodCrashLooping / PodOOMKilled / PrometheusTargetDown
+# PodCrashLooping / PodOOMKilled / ObservabilityTargetDown
 
-Alerts: `PodCrashLooping`, `PodOOMKilled`, `PrometheusTargetDown`
+Alerts: `PodCrashLooping`, `PodOOMKilled`, `ObservabilityTargetDown`
 Severity: `warning` (target down: `warning`/`critical` depending on service)
 Owner: platform + service team
 
 ## What it means
 
 A pod has restarted more than 5 times in 15 minutes (`PodCrashLooping`),
-was OOMKilled in the last 15 minutes (`PodOOMKilled`), or a Prometheus
-scrape target has been `up == 0` for 5 minutes (`PrometheusTargetDown`).
+was OOMKilled in the last 15 minutes (`PodOOMKilled`), or an
+observability-namespace scrape target has been `up == 0` for 5 minutes
+(`ObservabilityTargetDown`).
 
 ## Where to look
 

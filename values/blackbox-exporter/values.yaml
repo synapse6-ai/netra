@@ -61,4 +61,4 @@ serviceMonitor:
   enabled: false                # We use a dedicated probe ServiceMonitor.
 
 # Optional: Probe CRD definitions can be added under
-# manifests/prometheus/servicemonitors/blackbox-servicemonitor.yaml.
+# manifests/prometheus/servicemonitors/blackbox-probes.yaml.

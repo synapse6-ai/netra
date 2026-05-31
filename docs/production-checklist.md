@@ -5,29 +5,16 @@ Anything not checked here is a known gap.
 
 ## Before install
 
-- [ ] Every `REPLACE_ME_` placeholder in `values/` and `manifests/` is
-      replaced (search the tree with
-      `grep -RIn 'REPLACE_ME_' values manifests | sort`).
-- [ ] Grafana admin password is created as a Secret out-of-band (sealed
-      secret, External Secrets Operator, or `kubectl create secret`
-      from a one-shot terminal — never in a values file).
-- [ ] Loki GCS bucket exists, has lifecycle rules matching the 15d
-      retention policy, and uniform bucket-level access denies public read.
-- [ ] Tempo GCS bucket exists with matching lifecycle (7–15d) and same
-      access controls.
-- [ ] GCS access uses GKE Workload Identity: each component's KSA
-      (`netra-loki`, `netra-tempo`) is bound to a GSA with
-      `roles/storage.objectAdmin` on its bucket. No static keys, no
-      credential Secret mounted.
-- [ ] Dedicated observability node pool exists, labelled
-      `workload=observability`, tainted
-      `workload=observability:NoSchedule`.
-- [ ] `REPLACE_ME_SSD_STORAGECLASS` is set to a real, SSD-backed
-      `StorageClass` for the cluster.
-- [ ] Prometheus `external_labels` are set per environment
-      (`environment: dev|stage|prod`, `cluster: <name>`). One Helm
-      release per environment cluster, same chart, different external
-      labels.
+- [ ] `values/kube-prometheus-stack/values.yaml` — set `external_labels.cluster`
+      if not using the default `netra`.
+- [ ] `values/loki/values.yaml` and `values/tempo/values.yaml` — set real GCS
+      bucket names and Workload Identity annotations if on GKE.
+- [ ] Storage class in `values/` matches your cluster (`standard` by default).
+- [ ] Grafana admin Secret exists or will be created by `install.sh`
+      (`netra-grafana-admin`).
+- [ ] Loki and Tempo GCS buckets exist with matching retention lifecycle rules.
+- [ ] GKE Workload Identity bound for Loki/Tempo if using GCS.
+- [ ] Observability node pool exists (`workload=observability` label + taint).
 
 ## After install
 
@@ -40,8 +27,7 @@ Anything not checked here is a known gap.
 - [ ] Every PrometheusRule shows `health: ok` in
       `https://<grafana>/alerting/list` filtered by `netra` label.
 - [ ] No alert is firing on the Netra stack itself.
-- [ ] At least one blackbox probe target per env returns
-      `probe_success == 1`.
+- [ ] In-cluster blackbox probes return `probe_success == 1`.
 
 ## Security posture
 
@@ -54,9 +40,10 @@ Anything not checked here is a known gap.
       Alertmanager `route` block in
       `values/kube-prometheus-stack/values.yaml` ships with `null`
       receivers; flip them on as receivers are wired.
-- [ ] Network policies restrict the `observability` namespace ingress
-      to: kube-system, prometheus operator endpoints, and the app
-      namespaces that need to push OTLP.
+- [ ] Network policies in `manifests/networkpolicies/` are applied
+      (`install.sh` does this). They restrict Loki/Tempo ingest to
+      Alloy and the OTel Collector respectively; OTLP is open to all
+      namespaces via the collector Service.
 - [ ] No `request_id`, `trace_id`, `span_id`, `user_id`, `email`,
       `session_id`, or `tenant_id` is being used as a Loki label.
       Cross-check with `logcli labels` after first 24h of ingest.

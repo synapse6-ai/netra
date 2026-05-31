@@ -83,7 +83,7 @@ alloy:
         }
         rule {
           target_label = "cluster"
-          replacement  = "REPLACE_ME_CLUSTER_NAME"
+          replacement  = "netra"
         }
       }
 
@@ -112,7 +112,7 @@ alloy:
           url = "http://netra-loki.observability.svc.cluster.local:3100/loki/api/v1/push"
         }
         external_labels = {
-          cluster = "REPLACE_ME_CLUSTER_NAME",
+          cluster = "netra",
         }
       }
 
@@ -127,7 +127,7 @@ alloy:
           listen_address = "0.0.0.0"
           listen_port    = 12347
           cors_allowed_origins = [
-            "REPLACE_ME_RUM_ALLOWED_ORIGIN",
+            "http://localhost:3000",
           ]
         }
 

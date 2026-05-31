@@ -12,7 +12,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(probe_success{environment=~\"$environment\"} == 0)", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(probe_success{layer=\"platform\"} == 0) + sum(probe_success{layer=\"app\", environment=~\"$environment\"} == 0)", "refId": "A"}],
       "title": "Failing probes",
       "type": "stat"
     },
@@ -22,7 +22,7 @@
       "id": 2,
       "fieldConfig": {"defaults": {"unit": "s"}},
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "max(probe_duration_seconds{environment=~\"$environment\"})", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "max(probe_duration_seconds{layer=\"platform\"} or probe_duration_seconds{layer=\"app\", environment=~\"$environment\"})", "refId": "A"}],
       "title": "Max probe duration",
       "type": "stat"
     },
@@ -32,7 +32,7 @@
       "id": 3,
       "fieldConfig": {"defaults": {"unit": "s"}},
       "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "probe_duration_seconds{environment=~\"$environment\", service=~\"$service\"}", "refId": "A", "legendFormat": "{{service}} {{instance}}"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "probe_duration_seconds{layer=\"platform\", service=~\"$service\"} or probe_duration_seconds{layer=\"app\", environment=~\"$environment\", service=~\"$service\"}", "refId": "A", "legendFormat": "{{service}} {{instance}} {{environment}}"}],
       "title": "Probe duration",
       "type": "timeseries"
     },
@@ -41,7 +41,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
       "id": 4,
       "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "probe_success{environment=~\"$environment\", service=~\"$service\"}", "refId": "A", "legendFormat": "{{service}} {{instance}}"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "probe_success{layer=\"platform\", service=~\"$service\"} or probe_success{layer=\"app\", environment=~\"$environment\", service=~\"$service\"}", "refId": "A", "legendFormat": "{{service}} {{instance}} {{environment}}"}],
       "title": "Probe success",
       "type": "timeseries"
     }
@@ -51,8 +51,8 @@
   "tags": ["netra", "platform", "blackbox"],
   "templating": {
     "list": [
-      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(probe_success, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(probe_success, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
-      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(probe_success{environment=~\"$environment\"}, service)", "hide": 0, "includeAll": true, "label": "service", "multi": true, "name": "service", "options": [], "query": {"qryType": 1, "query": "label_values(probe_success{environment=~\"$environment\"}, service)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
+      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(probe_success{layer=\"app\"}, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(probe_success{layer=\"app\"}, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
+      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(probe_success, service)", "hide": 0, "includeAll": true, "label": "service", "multi": true, "name": "service", "options": [], "query": {"qryType": 1, "query": "label_values(probe_success, service)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
     ]
   },
   "time": {"from": "now-6h", "to": "now"},

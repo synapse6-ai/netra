@@ -1,0 +1,98 @@
+---
+# Restrict who can push logs/traces into Netra backends.
+#
+# Apply after Helm installs so pod labels exist. Selectors use Helm
+# instance names (fullnameOverride). Adjust if release names change.
+#
+# OTel Collector accepts OTLP from any namespace (apps push traces).
+# Loki accepts push traffic from Alloy only.
+# Tempo accepts OTLP from the OTel Collector only (blessed trace path).
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-loki-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-loki
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-alloy
+      ports:
+        - port: 3100
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 3100
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-tempo-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-tempo
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-otel-collector
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 3200
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-otel-collector-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-otel-collector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-alloy
+      ports:
+        - port: 4317
+          protocol: TCP

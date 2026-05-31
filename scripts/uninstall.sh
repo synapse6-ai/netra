@@ -50,10 +50,13 @@ say "Removing dashboard ConfigMaps"
 kubectl delete configmap -n "$NS" -l grafana_dashboard=1,app.kubernetes.io/part-of=netra --ignore-not-found
 
 say "Removing Netra-owned manifests"
-kubectl delete -n "$NS" -f "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/manifests/grafana/datasources-configmap.yaml" --ignore-not-found
-kubectl delete -n "$NS" -f "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/manifests/prometheus/prometheusrules/" --ignore-not-found
-kubectl delete -n "$NS" -f "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/manifests/prometheus/servicemonitors/" --ignore-not-found
-kubectl delete -n "$NS" -f "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/manifests/blackbox/probes-configmap.yaml" --ignore-not-found
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/networkpolicies/" --ignore-not-found
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/grafana/datasources-configmap.yaml" --ignore-not-found
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/prometheus/prometheusrules/" --ignore-not-found
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/prometheus/servicemonitors/" --ignore-not-found
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/blackbox/probes-configmap.yaml" --ignore-not-found
+kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/node-scheduling.yaml" --ignore-not-found
 
 if [[ "$PURGE_PVCS" == "1" ]]; then
   say "PURGE_PVCS=1: deleting observability PVCs"
@@ -67,3 +70,12 @@ fi
 echo
 echo "Object-storage buckets are NEVER deleted by this script."
 echo "If you really want to drop bucket data, do it through your cloud console."
+echo
+echo "Orphan resources (removed manually if needed):"
+echo "  - Namespace '$NS' (kept by default)"
+echo "  - Prometheus Operator CRDs (cluster-scoped, installed by netra-kps)"
+echo "  - GCS buckets and Workload Identity bindings (cloud console)"
+echo
+echo "Full teardown:"
+echo "  ./scripts/uninstall.sh && PURGE_PVCS=1 ./scripts/uninstall.sh"
+echo "  kubectl delete namespace $NS"

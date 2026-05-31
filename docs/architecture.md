@@ -52,24 +52,48 @@ Netra is one shared observability stack that watches every environment
 
 ## Cross-environment tracking
 
-One stack covers all envs. Every signal carries:
+**One Netra stack, env-neutral.** Netra itself has no dev/stage/prod — it is a
+single observability plane (`cluster: netra` on stack metrics only).
 
-- `environment` (dev | stage | prod)
-- `cluster`
+**Apps carry their own environment.** Every workload (e.g. guardrailstudio)
+labels pods with `environment: dev | stage | prod`. Netra copies that label
+onto metrics and logs automatically. Traces use OTLP
+`deployment.environment`.
+
+```
+┌─────────────────────────────────────────┐
+│  Netra (one stack, no app environment)  │
+│  cluster=netra, namespace=observability │
+└─────────────────────────────────────────┘
+          ▲ scrapes / collects
+          │
+   guardrailstudio-api pods
+   ├── environment=dev
+   ├── environment=stage
+   └── environment=prod
+```
+
+Dashboards for services filter on the **app** `environment` variable.
+Platform dashboards (Loki health, Prometheus health, …) filter on
+`namespace=observability` — not on environment.
+
+Every **app** signal should carry:
+
+- `environment` (dev | stage | prod) — from pod labels or OTLP
 - `namespace`
 - `service` / `service_name`
 - `pod`
 - `team`
 
-Prometheus injects `cluster` and `environment` as `external_labels` so
-every metric and every alert is environment-stamped automatically. Alloy
-copies `environment` and `cluster` onto every log stream. The OTel
-Collector upserts `deployment.environment` and `cluster` resource
-attributes on every span.
+Prometheus `external_labels` set `cluster` only. Alloy copies `environment`
+and `cluster` from pod labels onto log streams. Apps set
+`deployment.environment` on OTLP spans.
 
-Dashboards expose `environment` (and `service` where applicable) as
-template variables so one dashboard answers the same question for any
-env.
+Service dashboards expose `environment` and `service` as template variables
+(e.g. pick `guardrailstudio-api` + `prod` on the Python API dashboard).
+
+App blackbox probes use `layer: app` and `environment: dev|stage|prod` per
+target. Stack self-checks use `layer: platform` with no environment.
 
 ## Node isolation, not HA
 

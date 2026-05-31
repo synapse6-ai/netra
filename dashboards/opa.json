@@ -12,8 +12,8 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(opa_decisions_total{environment=~\"$environment\"}[5m]))", "refId": "A"}],
-      "title": "Decisions/s",
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(http_request_duration_seconds_count{job=~\".*opa.*\", handler=~\"v1/data.*\", environment=~\"$environment\"}[5m]))", "refId": "A"}],
+      "title": "Decision requests/s",
       "type": "stat"
     },
     {
@@ -22,8 +22,8 @@
       "id": 2,
       "fieldConfig": {"defaults": {"unit": "percentunit"}},
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(opa_decisions_total{decision=\"error\", environment=~\"$environment\"}[5m])) / sum(rate(opa_decisions_total{environment=~\"$environment\"}[5m]))", "refId": "A"}],
-      "title": "Decision error rate",
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum(rate(http_request_duration_seconds_count{job=~\".*opa.*\", code=~\"5..\", environment=~\"$environment\"}[5m])) / sum(rate(http_request_duration_seconds_count{job=~\".*opa.*\", environment=~\"$environment\"}[5m]))", "refId": "A"}],
+      "title": "HTTP 5xx rate",
       "type": "stat"
     },
     {
@@ -50,8 +50,8 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
       "id": 5,
       "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum by (decision) (rate(opa_decisions_total{environment=~\"$environment\"}[5m]))", "refId": "A", "legendFormat": "{{decision}}"}],
-      "title": "Decisions by outcome",
+      "targets": [{"datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "expr": "sum by (code) (rate(http_request_duration_seconds_count{job=~\".*opa.*\", handler=~\"v1/data.*\", environment=~\"$environment\"}[5m]))", "refId": "A", "legendFormat": "{{code}}"}],
+      "title": "Decision requests by HTTP code",
       "type": "timeseries"
     },
     {
@@ -74,7 +74,7 @@
   "tags": ["netra", "opa"],
   "templating": {
     "list": [
-      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(up, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(up, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
+      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "netra-prometheus"}, "definition": "label_values(http_request_duration_seconds_count{job=~\".*opa.*\"}, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values(http_request_duration_seconds_count{job=~\".*opa.*\"}, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
     ]
   },
   "time": {"from": "now-6h", "to": "now"},

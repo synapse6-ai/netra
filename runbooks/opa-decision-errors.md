@@ -1,19 +1,18 @@
-# OpaDecisionErrorRateHigh / OpaBundleLoadFailure / OpaTargetDown
+# OpaHttp5xxRateHigh / OpaBundleLoadFailure / OpaTargetDown
 
-Alerts: `OpaDecisionErrorRateHigh`, `OpaBundleLoadFailure`, `OpaTargetDown`
+Alerts: `OpaHttp5xxRateHigh`, `OpaBundleLoadFailure`, `OpaTargetDown`
 Severity: `critical`
 Owner: platform
 
 ## What it means
 
-OPA is returning decision errors above 1% for 10 minutes
-(`OpaDecisionErrorRateHigh`), failed to load a policy bundle in the last
-15 minutes (`OpaBundleLoadFailure`), or has been unreachable to Prometheus
-for 5 minutes (`OpaTargetDown`).
+OPA is returning HTTP 5xx above 1% for 10 minutes (`OpaHttp5xxRateHigh`),
+failed to load a policy bundle in the last 15 minutes (`OpaBundleLoadFailure`),
+or has been unreachable to Prometheus for 5 minutes (`OpaTargetDown`).
 
 ## Where to look
 
-- Grafana: `Netra / OPA` — `Decisions by outcome`, `Live OPA targets`.
+- Grafana: `Netra / OPA` — `Decision requests by HTTP code`, `Live OPA targets`.
 - Logs:
   ```
   {service_name="opa", environment="$environment", level=~"error|warn"}

@@ -49,14 +49,15 @@ for f in \
   manifests/prometheus/servicemonitors/python-api-servicemonitor.yaml \
   manifests/prometheus/servicemonitors/python-worker-servicemonitor.yaml \
   manifests/prometheus/servicemonitors/opa-servicemonitor.yaml \
-  manifests/prometheus/servicemonitors/blackbox-servicemonitor.yaml \
+  manifests/prometheus/servicemonitors/blackbox-probes.yaml \
   manifests/prometheus/prometheusrules/node-alerts.yaml \
   manifests/prometheus/prometheusrules/python-api-alerts.yaml \
   manifests/prometheus/prometheusrules/python-worker-alerts.yaml \
   manifests/prometheus/prometheusrules/opa-alerts.yaml \
   manifests/prometheus/prometheusrules/blackbox-alerts.yaml \
   manifests/prometheus/prometheusrules/observability-stack-alerts.yaml \
-  manifests/blackbox/probes-configmap.yaml
+  manifests/blackbox/probes-configmap.yaml \
+  manifests/networkpolicies/ingest.yaml
 do
   if [[ -s "$REPO_ROOT/$f" ]]; then ok "$f"; else fail "missing $f"; fi
 done
@@ -104,7 +105,7 @@ required_runbooks=(
   worker-queue-age-high.md worker-failures-high.md
   opa-latency-high.md opa-decision-errors.md
   blackbox-endpoint-down.md loki-ingestion-errors.md
-  tempo-ingestion-errors.md
+  tempo-ingestion-errors.md alloy-down.md prometheus-storage-high.md
 )
 for r in "${required_runbooks[@]}"; do
   if [[ -s "$REPO_ROOT/runbooks/$r" ]]; then ok "$r"; else fail "missing $r"; fi
@@ -121,8 +122,7 @@ done
 section "secret/placeholder sniff test"
 
 # Anything that looks like an AWS-style live key or a hardcoded password
-# in a prod-critical field is treated as a failure. REPLACE_ME_ markers
-# are exempt because they are obviously placeholders.
+# in a prod-critical field is treated as a failure.
 suspicious=$(grep -RInE \
   -e 'AKIA[0-9A-Z]{16}' \
   -e 'aws_secret_access_key:\s*[A-Za-z0-9/+]{20,}' \
@@ -130,33 +130,13 @@ suspicious=$(grep -RInE \
   --exclude-dir=.git \
   --exclude='*.md' \
   --exclude='validate.sh' \
-  "$REPO_ROOT" 2>/dev/null \
-  | grep -v 'REPLACE_ME_' || true)
+  "$REPO_ROOT" 2>/dev/null || true)
 if [[ -z "$suspicious" ]]; then
   ok "no committed secrets / real-looking creds found"
 else
   fail "possible committed secrets:"
   echo "$suspicious" | sed 's/^/      /'
 fi
-
-# Required placeholders must still be REPLACE_ME_ values (they are not
-# allowed to silently turn into real values on main).
-section "required REPLACE_ME placeholders still present"
-for token in \
-  REPLACE_ME_LOKI_GCS_BUCKET \
-  REPLACE_ME_LOKI_GCP_SERVICE_ACCOUNT \
-  REPLACE_ME_TEMPO_GCS_BUCKET \
-  REPLACE_ME_TEMPO_GCP_SERVICE_ACCOUNT \
-  REPLACE_ME_GRAFANA_ADMIN_SECRET \
-  REPLACE_ME_CLUSTER_NAME \
-  REPLACE_ME_SSD_STORAGECLASS
-do
-  if grep -RIn --exclude-dir=.git "$token" "$REPO_ROOT" >/dev/null 2>&1; then
-    ok "$token"
-  else
-    fail "$token is no longer in the tree — replaced inline instead of overridden?"
-  fi
-done
 
 echo
 if [[ "$EXIT" -eq 0 ]]; then

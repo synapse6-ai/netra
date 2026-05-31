@@ -29,7 +29,7 @@ A blackbox probe has been failing for 5+ minutes
    ```
 2. Reproduce from the blackbox exporter pod:
    ```sh
-   kubectl -n observability port-forward svc/netra-blackbox-prometheus-blackbox-exporter 9115
+   kubectl -n observability port-forward svc/netra-blackbox 9115
    curl 'http://localhost:9115/probe?target=<URL>&module=http_2xx&debug=true'
    ```
 3. Check the owning service's dashboard for matching 5xx / latency

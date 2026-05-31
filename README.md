@@ -42,21 +42,23 @@ applies manifests.
 `verify.sh` checks live cluster state. `validate.sh` lints local YAML/JSON
 without needing a cluster.
 
-## Required placeholders
+## Configuration
 
-Before installing into a real cluster, replace these placeholders. Search the
-repo for `REPLACE_ME_`:
+Defaults in `values/` work for local/dev clusters. For production, edit
+the files below (no placeholder tokens — just change the values):
 
-- `REPLACE_ME_LOKI_GCS_BUCKET`, `REPLACE_ME_TEMPO_GCS_BUCKET` (GCS buckets)
-- `REPLACE_ME_LOKI_GCP_SERVICE_ACCOUNT`,
-  `REPLACE_ME_TEMPO_GCP_SERVICE_ACCOUNT` (GSA emails bound to the Loki/Tempo
-  KSAs via GKE Workload Identity; each needs `roles/storage.objectAdmin` on
-  its bucket)
-- `REPLACE_ME_SSD_STORAGECLASS` (SSD-backed StorageClass for WAL/cache PVCs)
-- `REPLACE_ME_GRAFANA_ADMIN_PASSWORD` (use a sealed secret or external
-  secret manager; do not commit)
-- `REPLACE_ME_CLUSTER_NAME`
-- Blackbox probe targets in `manifests/blackbox/probes-configmap.yaml`
+| What | File | Default |
+|------|------|---------|
+| Cluster label | `values/kube-prometheus-stack/values.yaml` | `cluster: netra` (stack only; no environment) |
+| PVC storage class | same + loki/tempo/kps values | `standard` |
+| GCS bucket names | `values/loki/values.yaml`, `values/tempo/values.yaml` | `netra-loki-data`, `netra-tempo-data` |
+| GKE Workload Identity | `serviceAccount.annotations` in loki/tempo values | empty (add GSA email for GCS) |
+| Grafana admin | created by `install.sh` | Secret `netra-grafana-admin` |
+| RUM CORS origin | `values/alloy/values.yaml` | `http://localhost:3000` |
+| External probes | `manifests/.../blackbox-probes.yaml` | in-cluster stack health only |
+
+Blackbox probes ship with in-cluster targets (Grafana, Prometheus, Loki,
+Alertmanager). Add your app URLs to `blackbox-probes.yaml` when needed.
 
 ## Retention (default)
 
@@ -72,19 +74,21 @@ repo for `REPLACE_ME_`:
 
 Retention is configurable through Helm values.
 
-## Tracking all environments
+## Tracking app environments
 
-One stack, all envs. Every metric, log, trace, and RUM event carries:
+**Netra is env-neutral** — one stack, no dev/stage/prod of its own.
+
+**Apps are not.** Label every pod with `environment: dev | stage | prod`.
+Netra picks that up on metrics and logs; set `deployment.environment` on
+traces. Grafana dashboards filter by app `environment` and `service` (e.g.
+guardrailstudio-api across dev, stage, prod).
+
+Required on app pods:
 
 - `environment` (dev | stage | prod)
+- `app.kubernetes.io/name` (becomes the `service` metric label)
 - `namespace`
-- `service` / `service_name`
-- `pod`
-- `cluster`
 - `team`
-
-Every dashboard exposes `environment` (and `service` where applicable) as
-template variables so a single dashboard answers the same question for any env.
 
 ## Dashboards and alerts are Git-owned
 

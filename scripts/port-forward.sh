@@ -21,7 +21,7 @@ declare -A TARGETS=(
   [grafana]="svc/netra-kps-grafana 3000:80"
   [prometheus]="svc/netra-kps-prometheus 9090:9090"
   [alertmanager]="svc/netra-kps-alertmanager 9093:9093"
-  [loki]="svc/netra-loki-gateway 3100:80"
+  [loki]="svc/netra-loki 3100:3100"
   [tempo]="svc/netra-tempo 3200:3200"
 )
 

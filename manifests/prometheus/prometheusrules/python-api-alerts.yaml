@@ -25,13 +25,19 @@ spec:
       rules:
         - alert: PythonApiHigh5xxRate
           expr: |
-            sum by (service, environment, namespace) (
-              rate(http_requests_total{service=~".+", status_code=~"5..", scrape_class="api"}[5m])
-            )
-            /
+            (
+              sum by (service, environment, namespace) (
+                rate(http_requests_total{service=~".+", status_code=~"5..", scrape_class="api"}[5m])
+              )
+              /
+              sum by (service, environment, namespace) (
+                rate(http_requests_total{service=~".+", scrape_class="api"}[5m])
+              )
+            ) > 0.02
+            and on (service, environment, namespace)
             sum by (service, environment, namespace) (
               rate(http_requests_total{service=~".+", scrape_class="api"}[5m])
-            ) > 0.02
+            ) > 0.1
           for: 10m
           labels:
             severity: critical
@@ -40,8 +46,8 @@ spec:
           annotations:
             summary: "Python API 5xx > 2% on {{ $labels.service }} ({{ $labels.environment }})"
             description: "5xx ratio is above 2% for {{ $labels.service }} in {{ $labels.environment }} for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-api"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/python-api-high-5xx.md"
+            dashboard_url: "/d/netra-python-api"
+            runbook_url:   "runbooks/python-api-high-5xx.md"
 
         - alert: PythonApiHighP95Latency
           expr: |
@@ -59,8 +65,8 @@ spec:
           annotations:
             summary: "Python API p95 latency > 1s on {{ $labels.service }} ({{ $labels.environment }})"
             description: "p95 request latency for {{ $labels.service }} in {{ $labels.environment }} is above 1s for 10m."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-api"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/python-api-high-latency.md"
+            dashboard_url: "/d/netra-python-api"
+            runbook_url:   "runbooks/python-api-high-latency.md"
 
         - alert: PythonApiTargetDown
           expr: |
@@ -73,5 +79,5 @@ spec:
           annotations:
             summary: "Python API target down: {{ $labels.instance }} ({{ $labels.environment }})"
             description: "Target {{ $labels.instance }} for {{ $labels.job }} has been down for more than 5 minutes."
-            dashboard_url: "https://REPLACE_ME_GRAFANA_HOST/d/netra-python-api"
-            runbook_url:   "https://REPLACE_ME_REPO_URL/blob/main/runbooks/python-api-high-5xx.md"
+            dashboard_url: "/d/netra-python-api"
+            runbook_url:   "runbooks/python-api-high-5xx.md"

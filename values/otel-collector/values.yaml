@@ -91,15 +91,11 @@ config:
       check_interval: 5s
       limit_percentage: 80
       spike_limit_percentage: 25
-    # Force every span to carry environment + cluster, even when an app
-    # client forgets to set them.
+    # Stamp cluster on every span. Apps set deployment.environment via OTLP.
     resource/env:
       attributes:
         - key: cluster
-          value: REPLACE_ME_CLUSTER_NAME
-          action: upsert
-        - key: deployment.environment
-          value: REPLACE_ME_ENVIRONMENT
+          value: netra
           action: upsert
 
   exporters:
@@ -107,8 +103,6 @@ config:
       endpoint: netra-tempo.observability.svc.cluster.local:4317
       tls:
         insecure: true
-    debug:
-      verbosity: basic
 
   service:
     extensions: [health_check]

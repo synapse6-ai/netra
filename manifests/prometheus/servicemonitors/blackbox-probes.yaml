@@ -1,0 +1,131 @@
+---
+# Probe CRDs for blackbox_exporter.
+#
+# Stack probes use layer=platform (no environment — Netra is env-neutral).
+# App probes use layer=app + environment=dev|stage|prod on each target.
+#
+# Prober: netra-blackbox.observability.svc.cluster.local:9115
+
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-grafana
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-grafana
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-kps-grafana.observability.svc.cluster.local/api/health
+      labels:
+        layer: platform
+        service: grafana
+        team: platform
+        probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-prometheus
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-prometheus
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-kps-prometheus.observability.svc.cluster.local:9090/-/healthy
+      labels:
+        layer: platform
+        service: prometheus
+        team: platform
+        probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-loki
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-loki
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-loki.observability.svc.cluster.local:3100/ready
+      labels:
+        layer: platform
+        service: loki
+        team: platform
+        probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-alertmanager
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-alertmanager
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-kps-alertmanager.observability.svc.cluster.local:9093/-/healthy
+      labels:
+        layer: platform
+        service: alertmanager
+        team: platform
+        probe_kind: health
+
+# --- App probes (examples — uncomment and set real URLs) ----------------
+#
+# apiVersion: monitoring.coreos.com/v1
+# kind: Probe
+# metadata:
+#   name: netra-blackbox-guardrailstudio-api-dev
+#   namespace: observability
+# spec:
+#   jobName: blackbox-guardrailstudio-api-dev
+#   interval: 30s
+#   module: http_2xx
+#   prober:
+#     url: netra-blackbox.observability.svc.cluster.local:9115
+#   targets:
+#     staticConfig:
+#       static:
+#         - https://api-dev.guardrailstudio.example/health
+#       labels:
+#         layer: app
+#         service: guardrailstudio-api
+#         team: guardrailstudio
+#         environment: dev
+#         probe_kind: health

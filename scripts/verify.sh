@@ -37,6 +37,7 @@ required_svcs=(
   netra-loki
   netra-tempo
   netra-otel-collector
+  netra-blackbox
 )
 for svc in "${required_svcs[@]}"; do
   if kubectl get svc -n "$NS" "$svc" >/dev/null 2>&1; then
@@ -45,6 +46,20 @@ for svc in "${required_svcs[@]}"; do
     fail "missing service: $svc"
   fi
 done
+
+# --- Alloy DaemonSet ----------------------------------------------------
+section "Alloy DaemonSet"
+if kubectl get daemonset -n "$NS" netra-alloy >/dev/null 2>&1; then
+  desired="$(kubectl get daemonset -n "$NS" netra-alloy -o jsonpath='{.status.desiredNumberScheduled}' 2>/dev/null || echo 0)"
+  ready="$(kubectl get daemonset -n "$NS" netra-alloy -o jsonpath='{.status.numberReady}' 2>/dev/null || echo 0)"
+  if [[ "$desired" -gt 0 && "$ready" == "$desired" ]]; then
+    ok "Alloy DaemonSet $ready/$desired ready"
+  else
+    fail "Alloy DaemonSet $ready/$desired ready"
+  fi
+else
+  fail "missing DaemonSet: netra-alloy"
+fi
 
 # --- ServiceMonitors ----------------------------------------------------
 section "ServiceMonitors"
@@ -58,6 +73,32 @@ for sm in "${required_sm[@]}"; do
     ok "ServiceMonitor $sm"
   else
     fail "missing ServiceMonitor: $sm"
+  fi
+done
+
+# --- Probes (blackbox) --------------------------------------------------
+section "Probes (blackbox)"
+required_probes=(
+  netra-blackbox-grafana
+  netra-blackbox-prometheus
+  netra-blackbox-loki
+  netra-blackbox-alertmanager
+)
+for p in "${required_probes[@]}"; do
+  if kubectl get probe -n "$NS" "$p" >/dev/null 2>&1; then
+    ok "Probe $p"
+  else
+    fail "missing Probe: $p"
+  fi
+done
+
+# --- NetworkPolicies ----------------------------------------------------
+section "NetworkPolicies"
+for np in netra-loki-ingress netra-tempo-ingress netra-otel-collector-ingress; do
+  if kubectl get networkpolicy -n "$NS" "$np" >/dev/null 2>&1; then
+    ok "NetworkPolicy $np"
+  else
+    fail "missing NetworkPolicy: $np"
   fi
 done
 

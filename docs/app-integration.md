@@ -41,18 +41,25 @@ Example Service metadata for an HTTP API scrape target:
 
 ```
 app.kubernetes.io/component:  api          # scrape class → scrape_class="api"
-team:                         <team>
-environment:                  dev | stage | prod
 ```
 
 Example pod labels (become `service`, `team`, `environment` on series):
 
 ```
-app.kubernetes.io/name:      <service>
-app.kubernetes.io/component:  <routing-id>   # may differ from scrape class
-team:                         <team>
-environment:                  dev | stage | prod
+app.kubernetes.io/name:       guardrailstudio-api
+app.kubernetes.io/component:  api
+team:                         guardrailstudio
+environment:                  dev          # or stage | prod — one value per Deployment
 ```
+
+Run **three Deployments** (or namespaces) with the same `app.kubernetes.io/name`
+but different `environment` pod labels to track guardrailstudio across dev,
+stage, and prod on one Netra stack. The Python API dashboard will list
+`guardrailstudio-api` under service and let you pick the environment.
+
+Blackbox synthetic checks for apps use `layer: app` and per-target
+`environment` labels — see the commented example in
+`manifests/prometheus/servicemonitors/blackbox-probes.yaml`.
 
 - ServiceMonitors are namespace-agnostic (`namespaceSelector: any`), so a
   conforming workload in **any** namespace is scraped automatically.
@@ -72,8 +79,11 @@ netra-otel-collector.observability.svc.cluster.local:4317   # gRPC
 netra-otel-collector.observability.svc.cluster.local:4318   # HTTP
 ```
 
-The collector upserts `deployment.environment` and `cluster` resource
-attributes on every span, so services need not set them.
+Do **not** send traces directly to Tempo — the collector is the blessed
+path. NetworkPolicy blocks direct Tempo OTLP from other pods.
+
+Set `deployment.environment` and `service.name` on every span via OTLP
+resource attributes. The collector upserts `cluster` only.
 
 ## Logs (Alloy → Loki)
 
@@ -87,11 +97,16 @@ attributes on every span, so services need not set them.
 
 ## RUM (browser, optional)
 
-Point a Grafana Faro Web SDK at the Alloy Faro receiver ingress:
+Point a Grafana Faro Web SDK at the Alloy Faro receiver via cluster
+ingress (add ingress separately — not in this scaffold):
 
 ```
-https://REPLACE_ME_FARO_INGRESS_HOST/collect
+https://<your-ingress-host>/collect
 ```
+
+Set `app.name` in the Faro SDK to match the `service_name` label used in
+dashboards (default platform dashboard expects `frontend`). CORS origins
+are configured in `values/alloy/values.yaml` (default: localhost:3000).
 
 ## Alerting expectations
 
@@ -103,7 +118,12 @@ its own repo/overlay — it does not edit Netra's rules.
 |--------|-----------------|
 | HTTP API | `http_requests_total`, `http_request_duration_seconds_bucket` |
 | Workers | `worker_jobs_total`, `worker_jobs_retried_total`, `worker_jobs_processed_total`, `worker_queue_oldest_job_age_seconds` |
-| OPA | `opa_decisions_total`, `opa_bundle_*`, `http_request_duration_seconds` |
+| OPA | `http_request_duration_seconds_{bucket,count,sum}`, `bundle_failed_load_counter`, `up` |
+
+OPA exposes HTTP metrics on `/metrics` by default. Enable the bundle
+plugin's status reporting so `bundle_failed_load_counter` is populated.
+Do not rely on `opa_decisions_total` — it is not part of OPA's built-in
+Prometheus surface.
 
 ## Out of scope for this repo
 

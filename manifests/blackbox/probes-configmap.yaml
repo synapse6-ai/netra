@@ -1,12 +1,6 @@
 ---
-# Blackbox probe target catalog (informational).
-#
-# Source of truth for probe targets is
-# manifests/prometheus/servicemonitors/blackbox-servicemonitor.yaml (the
-# Probe CRDs). This ConfigMap is a human-readable mirror so the same
-# placeholder URLs can be reviewed in one place.
-#
-# Replace every REPLACE_ME_ value before installing into a real cluster.
+# Human-readable mirror of blackbox Probes (informational).
+# Source of truth: manifests/prometheus/servicemonitors/blackbox-probes.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,30 +10,15 @@ metadata:
     app.kubernetes.io/part-of: netra
 data:
   probes.yaml: |
-    frontend_health:
-      module: http_2xx
-      targets:
-        dev:   https://REPLACE_ME_FRONTEND_HOST_DEV
-        stage: https://REPLACE_ME_FRONTEND_HOST_STAGE
-        prod:  https://REPLACE_ME_FRONTEND_HOST_PROD
+    # Stack probes (layer=platform, no environment)
+    grafana:
+      target: http://netra-kps-grafana.observability.svc.cluster.local/api/health
+    prometheus:
+      target: http://netra-kps-prometheus.observability.svc.cluster.local:9090/-/healthy
+    loki:
+      target: http://netra-loki.observability.svc.cluster.local:3100/ready
+    alertmanager:
+      target: http://netra-kps-alertmanager.observability.svc.cluster.local:9093/-/healthy
 
-    api_health:
-      module: http_2xx
-      targets:
-        dev:   https://REPLACE_ME_API_HOST_DEV/health
-        stage: https://REPLACE_ME_API_HOST_STAGE/health
-        prod:  https://REPLACE_ME_API_HOST_PROD/health
-
-    api_readiness:
-      module: http_ready
-      targets:
-        dev:   https://REPLACE_ME_API_HOST_DEV/ready
-        stage: https://REPLACE_ME_API_HOST_STAGE/ready
-        prod:  https://REPLACE_ME_API_HOST_PROD/ready
-
-    opa_health:
-      module: http_2xx
-      targets:
-        dev:   http://REPLACE_ME_OPA_HOST_DEV:8181/health
-        stage: http://REPLACE_ME_OPA_HOST_STAGE:8181/health
-        prod:  http://REPLACE_ME_OPA_HOST_PROD:8181/health
+    # App probes: layer=app, environment=dev|stage|prod per target
+    # Example (guardrailstudio) — add as Probe CRDs in blackbox-probes.yaml
