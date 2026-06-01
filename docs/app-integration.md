@@ -88,8 +88,8 @@ resource attributes.
 On a **single-cluster** install, the Netra OTel collector upserts a
 `cluster` resource attribute from `NETRA_CLUSTER` / `values/cluster.yaml`.
 Multi-cluster hub deployments skip that upsert on the central collector;
-app-cluster agents own `cluster` and `k8s.cluster.name` instead (see
-`deploy/` bundles).
+app-cluster agents own `cluster` and `k8s.cluster.name` instead (via private
+overlays using `NETRA_*` hooks in `scripts/install.sh`).
 
 ## Logs (Alloy → Loki)
 

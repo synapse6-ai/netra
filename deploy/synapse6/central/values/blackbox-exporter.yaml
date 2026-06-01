@@ -1,5 +1,0 @@
-replicas: 2
-
-resources:
-  limits:
-    memory: 384Mi

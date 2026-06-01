@@ -174,7 +174,8 @@ Browse **Netra / Platform** for stack health, then wire your first app (below).
 
 Production hardening checklist: [docs/production-checklist.md](docs/production-checklist.md)
 
-Customer deployment bundles (optional): [deploy/README.md](deploy/README.md)
+Multi-cluster / customer overlays use the `NETRA_*` extension hooks in
+[`scripts/install.sh`](scripts/install.sh) — maintained outside this public repo.
 
 ---
 
