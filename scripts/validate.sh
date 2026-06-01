@@ -50,13 +50,13 @@ for f in \
   brand/netra-symbol.svg \
   brand/netra-symbol-white.svg \
   brand/netra-logo-horizontal.svg \
-  brand/netra-logo-horizontal-dark.svg \
   brand/netra-logo-stacked.svg \
-  brand/netra-logo-stacked-dark.svg \
+  brand/netra-icon.svg \
+  brand/favicon.svg \
+  brand/social-preview.svg \
   brand/netra-logo-horizontal.png \
-  brand/netra-logo-horizontal-dark.png \
   brand/netra-logo-stacked.png \
-  brand/netra-logo-stacked-dark.png \
+  brand/netra-symbol.png \
   brand/netra-icon.png \
   brand/favicon.png \
   brand/social-preview.png

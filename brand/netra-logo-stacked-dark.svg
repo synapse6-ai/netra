@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Netra">
-  <g transform="translate(36 8) scale(1)">
-    <path fill="#FFFFFF" d="M4.5 42V6h9.8l16.8 23.1V6h9.4v36h-9.2L14.1 18.9V42H4.5z"/>
-    <circle cx="37.5" cy="9.5" r="5.2" fill="#0057FF"/>
-  </g>
-  <text x="60" y="98" text-anchor="middle" fill="#FFFFFF" font-family="Inter, system-ui, -apple-system, Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.02em">Netra</text>
-</svg>

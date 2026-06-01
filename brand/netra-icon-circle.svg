@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Netra">
-  <circle cx="256" cy="256" r="256" fill="#0B0D12"/>
-  <g transform="translate(64 64) scale(8)">
-    <path fill="#FFFFFF" d="M4.5 42V6h9.8l16.8 23.1V6h9.4v36h-9.2L14.1 18.9V42H4.5z"/>
-    <circle cx="37.5" cy="9.5" r="5.2" fill="#0057FF"/>
-  </g>
-</svg>
