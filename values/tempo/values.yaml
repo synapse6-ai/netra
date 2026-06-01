@@ -10,6 +10,8 @@
 #
 # Retention: 7d by default. Raise `tempo.retention` to 360h (15d) per
 # platform policy; the chart drives the compactor block_retention from it.
+#
+# Sized for e2-standard-2 observability node (see manifests/node-scheduling.yaml).
 
 fullnameOverride: netra-tempo
 
@@ -20,11 +22,11 @@ tempo:
 
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 150m
+      memory: 384Mi
     limits:
-      cpu: 2
-      memory: 4Gi
+      cpu: 500m
+      memory: 768Mi
 
   storage:
     trace:

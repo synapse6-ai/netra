@@ -1,0 +1,9 @@
+# Cluster identity stamped on observability stack metrics, logs, and traces.
+#
+# Override at install time without editing this file:
+#   NETRA_CLUSTER=my-gke-cluster ./scripts/install.sh
+#
+# install.sh passes this to Prometheus external_labels, Alloy, and the OTel
+# Collector resource processor.
+
+cluster: netra

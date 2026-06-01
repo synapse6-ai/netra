@@ -12,6 +12,8 @@
 # no static keys, no mounted credentials Secret.
 #
 # Retention: 15d.
+#
+# Sized for e2-standard-2 observability node (see manifests/node-scheduling.yaml).
 
 fullnameOverride: netra-loki
 
@@ -74,11 +76,11 @@ singleBinary:
   replicas: 1
   resources:
     requests:
-      cpu: 200m
-      memory: 1Gi
+      cpu: 150m
+      memory: 768Mi
     limits:
-      cpu: 2
-      memory: 4Gi
+      cpu: 1
+      memory: 1280Mi
   persistence:
     enabled: true
     storageClass: standard

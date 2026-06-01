@@ -105,6 +105,81 @@ spec:
         service: alertmanager
         team: platform
         probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-tempo
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-tempo
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-tempo.observability.svc.cluster.local:3200/ready
+      labels:
+        layer: platform
+        service: tempo
+        team: platform
+        probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-otel-collector
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-otel-collector
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-otel-collector.observability.svc.cluster.local:13133/
+      labels:
+        layer: platform
+        service: otel-collector
+        team: platform
+        probe_kind: health
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: netra-blackbox-alloy
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+    release: netra-kps
+spec:
+  jobName: blackbox-alloy
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: netra-blackbox.observability.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://netra-alloy.observability.svc.cluster.local:12345/-/ready
+      labels:
+        layer: platform
+        service: alloy
+        team: platform
+        probe_kind: health
 
 # --- App probes (examples — uncomment and set real URLs) ----------------
 #

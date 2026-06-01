@@ -98,7 +98,13 @@ target. Stack self-checks use `layer: platform` with no environment.
 ## Node isolation, not HA
 
 Observability workloads run on a dedicated `workload=observability` node
-pool. Components scheduled there:
+pool. **Default GKE machine type: `e2-standard-2`** (2 vCPU, 8 GiB RAM,
+one node). Helm `resources` in `values/` are request/limit-tuned for that
+footprint; memory **limits** sum to ~6.3 GiB so an 8 GiB node is not
+overcommitted. Use `e2-standard-4` or additional nodes if Prometheus
+memory pressure or high scrape cardinality appears.
+
+Components scheduled on that pool:
 
 - Grafana, Prometheus, Alertmanager, Prometheus Operator,
   kube-state-metrics

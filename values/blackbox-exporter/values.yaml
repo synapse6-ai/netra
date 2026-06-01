@@ -10,7 +10,8 @@
 
 fullnameOverride: netra-blackbox
 
-replicas: 2
+# Single replica on one e2-standard-2 node; raise to 2+ on larger pools.
+replicas: 1
 
 resources:
   requests:
@@ -18,7 +19,7 @@ resources:
     memory: 64Mi
   limits:
     cpu: 200m
-    memory: 256Mi
+    memory: 192Mi
 
 nodeSelector:
   workload: observability

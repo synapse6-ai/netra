@@ -30,9 +30,11 @@ require jq
 # --- Required values --------------------------------------------------
 section "values/"
 for f in \
+  values/cluster.yaml \
   values/kube-prometheus-stack/values.yaml \
   values/loki/values.yaml \
   values/alloy/values.yaml \
+  values/alloy/config.alloy \
   values/tempo/values.yaml \
   values/otel-collector/values.yaml \
   values/blackbox-exporter/values.yaml
@@ -57,7 +59,8 @@ for f in \
   manifests/prometheus/prometheusrules/blackbox-alerts.yaml \
   manifests/prometheus/prometheusrules/observability-stack-alerts.yaml \
   manifests/blackbox/probes-configmap.yaml \
-  manifests/networkpolicies/ingest.yaml
+  manifests/networkpolicies/ingest.yaml \
+  manifests/alertmanager/receivers-secret.example.yaml
 do
   if [[ -s "$REPO_ROOT/$f" ]]; then ok "$f"; else fail "missing $f"; fi
 done
@@ -136,6 +139,35 @@ if [[ -z "$suspicious" ]]; then
 else
   fail "possible committed secrets:"
   echo "$suspicious" | sed 's/^/      /'
+fi
+
+# --- PromQL rules (optional promtool) ---------------------------------
+section "promtool (optional)"
+if command -v promtool >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  for f in "$REPO_ROOT"/manifests/prometheus/prometheusrules/*.yaml; do
+    rel="${f#$REPO_ROOT/}"
+    tmp="$(mktemp)"
+    if python3 - "$f" "$tmp" <<'PY'
+import sys, yaml
+src, dst = sys.argv[1], sys.argv[2]
+with open(src) as fh:
+    doc = yaml.safe_load(fh)
+with open(dst, "w") as out:
+    yaml.dump(doc.get("spec", {}), out)
+PY
+    then
+      if promtool check rules "$tmp" >/dev/null 2>&1; then
+        ok "$rel"
+      else
+        fail "$rel (promtool check rules)"
+      fi
+    else
+      fail "$rel (could not extract spec for promtool)"
+    fi
+    rm -f "$tmp"
+  done
+else
+  ok "skipped (install promtool + python3-yaml for rule lint)"
 fi
 
 echo

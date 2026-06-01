@@ -2,7 +2,11 @@
 # Restrict who can push logs/traces into Netra backends.
 #
 # Apply after Helm installs so pod labels exist. Selectors use Helm
-# instance names (fullnameOverride). Adjust if release names change.
+# instance names plus netra.io/collector labels set in values/ (not
+# user-spoofable unless a principal can create pods in observability).
+#
+# Production: restrict who can create pods in the observability namespace
+# via RBAC so collector labels cannot be forged.
 #
 # OTel Collector accepts OTLP from any namespace (apps push traces).
 # Loki accepts push traffic from Alloy only.
@@ -26,6 +30,7 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/instance: netra-alloy
+              netra.io/collector: loki
       ports:
         - port: 3100
           protocol: TCP
@@ -55,6 +60,7 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/instance: netra-otel-collector
+              netra.io/collector: otlp
       ports:
         - port: 4317
           protocol: TCP
@@ -93,6 +99,7 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/instance: netra-alloy
+              netra.io/collector: loki
       ports:
         - port: 4317
           protocol: TCP

@@ -65,9 +65,9 @@ spec:
         - alert: PrometheusStorageHigh
           expr: |
             (
-              prometheus_tsdb_storage_blocks_bytes
+              kubelet_volume_stats_used_bytes{namespace="observability", persistentvolumeclaim=~".*prometheus.*"}
               /
-              on(instance, pod) kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~".*prometheus.*"}
+              kubelet_volume_stats_capacity_bytes{namespace="observability", persistentvolumeclaim=~".*prometheus.*"}
             ) > 0.8
           for: 30m
           labels:
@@ -76,6 +76,6 @@ spec:
             team: platform
           annotations:
             summary: "Prometheus storage > 80%"
-            description: "Prometheus on {{ $labels.instance }} is using more than 80% of its PVC for more than 30m."
+            description: "Prometheus PVC in observability namespace is using more than 80% capacity for more than 30m."
             dashboard_url: "/d/netra-prometheus-health"
             runbook_url:   "runbooks/prometheus-storage-high.md"

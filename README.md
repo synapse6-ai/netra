@@ -127,11 +127,22 @@ Deep dive: [docs/architecture.md](docs/architecture.md)
 
 ### 1. Clone and install
 
-**Prerequisites:** Kubernetes (GKE recommended for GCS + Workload Identity), `kubectl`, `helm`, `jq`, and a node pool labeled `workload=observability` ([scheduling reference](manifests/node-scheduling.yaml)).
+**Prerequisites:** Kubernetes (GKE recommended for GCS + Workload Identity), `kubectl`, `helm`, `jq`, `envsubst`, and a dedicated observability node pool:
+
+| Setting | Value |
+| ------- | ----- |
+| Machine type | **`e2-standard-2`** (2 vCPU, 8 GiB) — default; use `e2-standard-4` if metrics cardinality is high |
+| Label | `workload=observability` |
+| Taint | `workload=observability:NoSchedule` |
+
+Before install, complete [docs/production-checklist.md](docs/production-checklist.md): GCS buckets + Workload Identity on Loki/Tempo, observability node pool ready. `install.sh` preflights both (use `SKIP_GCS_PREFLIGHT=1` only for non-GCS smoke tests).
+
+Helm resource requests/limits are tuned for one **e2-standard-2** node. See [node-scheduling.yaml](manifests/node-scheduling.yaml).
 
 ```sh
 git clone https://github.com/kuldeep-key/netra.git
 cd netra
+# optional: NETRA_CLUSTER=my-gke-cluster ./scripts/install.sh
 ./scripts/install.sh
 ```
 
@@ -142,8 +153,9 @@ Pinned chart releases (May 2026): kube-prometheus-stack **86.1.0**, Loki **17.1.
 ### 2. Verify
 
 ```sh
-./scripts/verify.sh      # in-cluster sanity check
-./scripts/validate.sh    # local JSON/YAML lint — no cluster needed
+./scripts/verify.sh           # in-cluster sanity check
+./scripts/verify.sh --deep    # + Prometheus targets + memory budget
+./scripts/validate.sh         # local JSON/YAML lint — no cluster needed
 ```
 
 ### 3. Open Grafana
@@ -206,12 +218,13 @@ Defaults target a small dev cluster. Override for production:
 
 | Setting                       | Location                                                              | Default                               |
 | ----------------------------- | --------------------------------------------------------------------- | ------------------------------------- |
-| Cluster identity (stack only) | `values/kube-prometheus-stack/values.yaml` → `externalLabels.cluster` | `netra`                               |
+| Cluster identity (stack only) | `values/cluster.yaml` or `NETRA_CLUSTER` env at install             | `netra`                               |
 | PVC storage class             | kps, loki, tempo values                                               | `standard`                            |
 | Log / trace buckets           | `values/loki/values.yaml`, `values/tempo/values.yaml`                 | `netra-loki-data`, `netra-tempo-data` |
 | GKE Workload Identity         | `serviceAccount.annotations` in loki/tempo                            | unset — add your GSA                  |
 | Grafana admin                 | auto-created by install                                               | Secret `netra-grafana-admin`          |
 | RUM CORS                      | `values/alloy/values.yaml`                                            | `http://localhost:3000`               |
+| Observability node (GKE)      | node pool spec                                                        | **`e2-standard-2`** (2 vCPU, 8 GiB)   |
 
 
 ### Retention defaults

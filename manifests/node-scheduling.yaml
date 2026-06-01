@@ -26,6 +26,11 @@
 # >= 3 observability nodes plus replicated/stateless components — out of
 # scope for this scaffold.
 #
+# Recommended GKE machine type (single-node pool): e2-standard-2
+#   (2 vCPU, 8 GiB RAM). Helm values are sized to schedule on that node;
+#   memory *limits* sum to ~6.3 GiB so the node is not overcommitted.
+#   For heavy cardinality or large clusters, use e2-standard-4+.
+#
 # This ConfigMap is informational. Helm values files own the actual
 # nodeSelector / tolerations used by the workloads.
 apiVersion: v1
@@ -48,3 +53,6 @@ data:
   README.md: |
     See manifests/node-scheduling.yaml header for the full convention.
     Edit Helm values files, not this ConfigMap, to change scheduling.
+
+    Default node pool: one e2-standard-2 (2 vCPU, 8 GiB) with label
+    workload=observability and taint workload=observability:NoSchedule.

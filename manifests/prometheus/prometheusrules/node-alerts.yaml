@@ -60,7 +60,7 @@ spec:
 
         - alert: PodCrashLooping
           expr: |
-            increase(kube_pod_container_status_restarts_total[15m]) > 5
+            increase(kube_pod_container_status_restarts_total{namespace!~"kube-system|observability"}[15m]) > 5
           for: 10m
           labels:
             severity: warning

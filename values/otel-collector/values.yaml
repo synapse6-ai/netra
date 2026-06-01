@@ -8,11 +8,16 @@
 # Faro receiver running in Alloy, then forwards traces to Tempo.
 #
 # Forwards OTLP traces to netra-tempo.
+#
+# Single replica matches one e2-standard-2 observability node; raise for HA.
 
 fullnameOverride: netra-otel-collector
 
+podLabels:
+  netra.io/collector: otlp
+
 mode: deployment
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: otel/opentelemetry-collector-contrib
@@ -20,10 +25,10 @@ image:
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 192Mi
   limits:
-    cpu: 1
-    memory: 1Gi
+    cpu: 500m
+    memory: 384Mi
 
 nodeSelector:
   workload: observability
@@ -92,6 +97,7 @@ config:
       limit_percentage: 80
       spike_limit_percentage: 25
     # Stamp cluster on every span. Apps set deployment.environment via OTLP.
+    # install.sh overrides cluster via NETRA_CLUSTER / values/cluster.yaml.
     resource/env:
       attributes:
         - key: cluster

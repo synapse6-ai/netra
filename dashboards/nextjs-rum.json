@@ -12,7 +12,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "sum(count_over_time({service_name=\"frontend\", environment=~\"$environment\"} |= \"\"[$__interval]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "sum(count_over_time({service_name=~\"$service_name\", environment=~\"$environment\"} |= \"\"[$__interval]))", "refId": "A"}],
       "title": "RUM events (interval)",
       "type": "stat"
     },
@@ -21,7 +21,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
-      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "sum(count_over_time({service_name=\"frontend\", environment=~\"$environment\", level=\"error\"}[$__interval]))", "refId": "A"}],
+      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "sum(count_over_time({service_name=~\"$service_name\", environment=~\"$environment\", level=\"error\"}[$__interval]))", "refId": "A"}],
       "title": "Frontend errors (interval)",
       "type": "stat"
     },
@@ -30,8 +30,8 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
       "id": 3,
       "options": {},
-      "targets": [{"datasource": {"type": "tempo", "uid": "netra-tempo"}, "queryType": "traceqlSearch", "filters": [{"id": "service-name", "tag": "service.name", "operator": "=", "value": ["frontend"], "scope": "resource"}], "refId": "A", "limit": 20}],
-      "title": "Recent frontend traces",
+      "targets": [{"datasource": {"type": "tempo", "uid": "netra-tempo"}, "queryType": "traceqlSearch", "filters": [{"id": "service-name", "tag": "service.name", "operator": "=", "value": ["$service_name"], "scope": "resource"}], "refId": "A", "limit": 20}],
+      "title": "Recent RUM traces",
       "type": "table"
     },
     {
@@ -39,8 +39,8 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
       "id": 4,
       "options": {"showTime": true, "wrapLogMessage": true, "dedupStrategy": "none"},
-      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "{service_name=\"frontend\", environment=~\"$environment\", level=\"error\"}", "refId": "A"}],
-      "title": "Recent frontend errors",
+      "targets": [{"datasource": {"type": "loki", "uid": "netra-loki"}, "expr": "{service_name=~\"$service_name\", environment=~\"$environment\", level=\"error\"}", "refId": "A"}],
+      "title": "Recent RUM errors",
       "type": "logs"
     }
   ],
@@ -49,7 +49,8 @@
   "tags": ["netra", "rum", "nextjs"],
   "templating": {
     "list": [
-      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "loki", "uid": "netra-loki"}, "definition": "label_values({service_name=\"frontend\"}, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values({service_name=\"frontend\"}, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
+      {"current": {"text": "frontend", "value": "frontend"}, "datasource": {"type": "loki", "uid": "netra-loki"}, "definition": "label_values(service_name)", "hide": 0, "includeAll": false, "label": "service", "multi": false, "name": "service_name", "options": [], "query": {"qryType": 1, "query": "label_values(service_name)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
+      {"current": {"text": "All", "value": "$__all"}, "datasource": {"type": "loki", "uid": "netra-loki"}, "definition": "label_values({service_name=~\"$service_name\"}, environment)", "hide": 0, "includeAll": true, "label": "environment", "multi": false, "name": "environment", "options": [], "query": {"qryType": 1, "query": "label_values({service_name=~\"$service_name\"}, environment)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"}
     ]
   },
   "time": {"from": "now-6h", "to": "now"},

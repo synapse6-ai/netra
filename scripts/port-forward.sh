@@ -12,11 +12,16 @@
 #   am|alert      -> http://localhost:9093
 #   loki          -> http://localhost:3100
 #   tempo         -> http://localhost:3200
+#
+# Security: forwarded backends have no auth on their cluster ports. Use only
+# on trusted networks. Do not expose these ports beyond localhost.
 
 set -euo pipefail
 
 NS=observability
 
+echo "warning: port-forwards expose unauthenticated observability APIs on localhost."
+echo
 declare -A TARGETS=(
   [grafana]="svc/netra-kps-grafana 3000:80"
   [prometheus]="svc/netra-kps-prometheus 9090:9090"

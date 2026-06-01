@@ -34,6 +34,7 @@ spec:
         - alert: BlackboxHighLatency
           expr: |
             probe_duration_seconds > 2
+            and probe_success == 1
           for: 10m
           labels:
             severity: warning

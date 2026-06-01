@@ -5,9 +5,9 @@
 # buckets are kept by default so we do not silently lose data.
 #
 # Usage:
-#   ./scripts/uninstall.sh                     # keep PVCs and buckets
+#   ./scripts/uninstall.sh                     # keep PVCs, namespace, secret
 #   PURGE_PVCS=1 ./scripts/uninstall.sh        # also delete observability PVCs
-#                                              # (buckets are still kept)
+#   ./scripts/uninstall.sh --purge-all         # PVCs + namespace + Grafana secret
 #
 # Object-storage buckets are NEVER deleted by this script.
 
@@ -15,6 +15,20 @@ set -euo pipefail
 
 NS=observability
 PURGE_PVCS="${PURGE_PVCS:-0}"
+PURGE_ALL=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --purge-all) PURGE_ALL=1; PURGE_PVCS=1 ;;
+    -h|--help)
+      echo "Usage: $0 [--purge-all]"
+      echo "  PURGE_PVCS=1  also delete PVCs in $NS"
+      echo "  --purge-all   PVCs + namespace + netra-grafana-admin secret"
+      exit 0
+      ;;
+    *) echo "unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
@@ -59,12 +73,19 @@ kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/blackbox/probes-configmap.yaml"
 kubectl delete -n "$NS" -f "$REPO_ROOT/manifests/node-scheduling.yaml" --ignore-not-found
 
 if [[ "$PURGE_PVCS" == "1" ]]; then
-  say "PURGE_PVCS=1: deleting observability PVCs"
-  kubectl delete pvc -n "$NS" --all
+  say "Deleting observability PVCs"
+  kubectl delete pvc -n "$NS" --all --ignore-not-found
 else
   echo
   echo "PVCs preserved. To remove them later:"
   echo "  PURGE_PVCS=1 ./scripts/uninstall.sh"
+fi
+
+if [[ "$PURGE_ALL" == "1" ]]; then
+  say "Deleting Grafana admin Secret"
+  kubectl delete secret -n "$NS" netra-grafana-admin --ignore-not-found
+  say "Deleting namespace $NS"
+  kubectl delete namespace "$NS" --ignore-not-found --wait=false
 fi
 
 echo
@@ -72,10 +93,9 @@ echo "Object-storage buckets are NEVER deleted by this script."
 echo "If you really want to drop bucket data, do it through your cloud console."
 echo
 echo "Orphan resources (removed manually if needed):"
-echo "  - Namespace '$NS' (kept by default)"
+echo "  - Namespace '$NS' (kept unless --purge-all)"
 echo "  - Prometheus Operator CRDs (cluster-scoped, installed by netra-kps)"
 echo "  - GCS buckets and Workload Identity bindings (cloud console)"
 echo
 echo "Full teardown:"
-echo "  ./scripts/uninstall.sh && PURGE_PVCS=1 ./scripts/uninstall.sh"
-echo "  kubectl delete namespace $NS"
+echo "  ./scripts/uninstall.sh --purge-all"

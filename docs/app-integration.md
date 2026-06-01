@@ -97,16 +97,19 @@ resource attributes. The collector upserts `cluster` only.
 
 ## RUM (browser, optional)
 
-Point a Grafana Faro Web SDK at the Alloy Faro receiver via cluster
-ingress (add ingress separately — not in this scaffold):
+Point a Grafana Faro Web SDK at the Alloy Faro receiver. In-cluster URL
+(no ingress required for smoke tests):
 
 ```
-https://<your-ingress-host>/collect
+http://netra-alloy.observability.svc.cluster.local:12347/collect
 ```
+
+For browsers outside the cluster, expose port **12347** on the Alloy
+Service via ingress (add ingress separately — not in this scaffold).
 
 Set `app.name` in the Faro SDK to match the `service_name` label used in
-dashboards (default platform dashboard expects `frontend`). CORS origins
-are configured in `values/alloy/values.yaml` (default: localhost:3000).
+dashboards (pick **service** on the RUM dashboard). CORS origins are
+configured in `values/alloy/values.yaml` (default: localhost:3000).
 
 ## Alerting expectations
 

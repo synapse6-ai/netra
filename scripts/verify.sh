@@ -2,17 +2,31 @@
 # Netra in-cluster sanity check.
 #
 # Usage:
-#   ./scripts/verify.sh
+#   ./scripts/verify.sh           # existence + pod health
+#   ./scripts/verify.sh --deep    # also query Prometheus + resource budget
 #
 # Exits non-zero if any required object is missing or unhealthy.
 
-set -uo pipefail   # not -e: we want to keep checking after a failure.
+set -uo pipefail
 
 NS=observability
+DEEP=0
 EXIT=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --deep) DEEP=1 ;;
+    -h|--help)
+      echo "Usage: $0 [--deep]"
+      exit 0
+      ;;
+    *) echo "unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 ok()   { printf '  \033[1;32m[ ok ]\033[0m %s\n' "$*"; }
 fail() { printf '  \033[1;31m[fail]\033[0m %s\n' "$*"; EXIT=1; }
+warn() { printf '  \033[1;33m[warn]\033[0m %s\n' "$*"; }
 
 section() { printf '\n\033[1;36m== %s ==\033[0m\n' "$*"; }
 
@@ -38,6 +52,7 @@ required_svcs=(
   netra-tempo
   netra-otel-collector
   netra-blackbox
+  netra-alloy
 )
 for svc in "${required_svcs[@]}"; do
   if kubectl get svc -n "$NS" "$svc" >/dev/null 2>&1; then
@@ -46,6 +61,15 @@ for svc in "${required_svcs[@]}"; do
     fail "missing service: $svc"
   fi
 done
+
+# --- Alloy Faro port ----------------------------------------------------
+section "Alloy Faro Service port"
+if kubectl get svc -n "$NS" netra-alloy -o jsonpath='{.spec.ports[*].port}' 2>/dev/null \
+  | tr ' ' '\n' | grep -qx '12347'; then
+  ok "netra-alloy exposes port 12347 (Faro RUM)"
+else
+  fail "netra-alloy missing Service port 12347 — browser RUM will not work"
+fi
 
 # --- Alloy DaemonSet ----------------------------------------------------
 section "Alloy DaemonSet"
@@ -83,6 +107,9 @@ required_probes=(
   netra-blackbox-prometheus
   netra-blackbox-loki
   netra-blackbox-alertmanager
+  netra-blackbox-tempo
+  netra-blackbox-otel-collector
+  netra-blackbox-alloy
 )
 for p in "${required_probes[@]}"; do
   if kubectl get probe -n "$NS" "$p" >/dev/null 2>&1; then
@@ -137,6 +164,69 @@ if kubectl get configmap -n "$NS" netra-grafana-datasources >/dev/null 2>&1; the
   ok "netra-grafana-datasources present"
 else
   fail "missing ConfigMap: netra-grafana-datasources"
+fi
+
+# --- Alertmanager routing ----------------------------------------------
+section "Alertmanager routing"
+am_cfg=$(kubectl get secret -n "$NS" -l app.kubernetes.io/name=alertmanager \
+  -o jsonpath='{.items[0].data.alertmanager\.yaml}' 2>/dev/null | base64 -d 2>/dev/null || true)
+if [[ -z "$am_cfg" ]]; then
+  warn "could not read Alertmanager config (release may still be starting)"
+elif echo "$am_cfg" | grep -q 'receiver: "null"\|receiver: null'; then
+  warn "Alertmanager still routes to null receiver — wire real receivers before paging (see manifests/alertmanager/receivers-secret.example.yaml)"
+else
+  ok "Alertmanager has non-null receiver configured"
+fi
+
+if [[ "$DEEP" -eq 1 ]]; then
+  section "Deep checks (Prometheus)"
+
+  prom_pod=$(kubectl get pods -n "$NS" -l app.kubernetes.io/name=prometheus \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -z "$prom_pod" ]]; then
+    fail "no Prometheus pod found for deep checks"
+  else
+    prom_query() {
+      kubectl exec -n "$NS" "$prom_pod" -c prometheus -- \
+        wget -qO- "http://127.0.0.1:9090/api/v1/query?query=$(printf '%s' "$1" | jq -sRr @uri)" 2>/dev/null \
+        | jq -r '.data.result | length' 2>/dev/null || echo 0
+    }
+
+    down_count=$(prom_query 'count(up{namespace="observability"} == 0) or vector(0)')
+    if [[ "${down_count:-0}" == "0" ]]; then
+      ok "all observability scrape targets up"
+    else
+      fail "$down_count observability target(s) down (up==0)"
+    fi
+
+    probe_fail=$(prom_query 'count(probe_success{layer="platform"} == 0) or vector(0)')
+    if [[ "${probe_fail:-0}" == "0" ]]; then
+      ok "all platform blackbox probes succeeding"
+    else
+      fail "$probe_fail platform blackbox probe(s) failing"
+    fi
+  fi
+
+  section "Deep checks (observability node memory budget)"
+  # Sum of memory limits on the observability node should stay below
+  # allocatable on e2-standard-2 (~6 GiB after kube/system reserve).
+  obs_node=$(kubectl get nodes -l workload=observability -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -n "$obs_node" ]]; then
+    alloc_bytes=$(kubectl get node "$obs_node" -o jsonpath='{.status.allocatable.memory}' 2>/dev/null || true)
+    # allocatable is Ki — convert to Mi for comparison
+    alloc_mi=$(echo "$alloc_bytes" | sed 's/Ki$//' | awk '{printf "%.0f", $1/1024}')
+    # Static budget: tuned limits sum ~6.3 GiB on observability node
+    budget_mi=6500
+    if [[ -n "$alloc_mi" && "$alloc_mi" -gt 0 && "$budget_mi" -le "$alloc_mi" ]]; then
+      ok "node $obs_node allocatable ${alloc_mi}Mi >= budget ${budget_mi}Mi"
+    elif [[ -n "$alloc_mi" && "$alloc_mi" -gt 0 ]]; then
+      fail "node $obs_node allocatable ${alloc_mi}Mi < budget ${budget_mi}Mi — raise machine type or lower limits"
+    else
+      warn "could not read allocatable memory for $obs_node"
+    fi
+  else
+    warn "no observability node found for memory budget check"
+  fi
 fi
 
 echo

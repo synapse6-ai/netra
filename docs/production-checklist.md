@@ -5,20 +5,22 @@ Anything not checked here is a known gap.
 
 ## Before install
 
-- [ ] `values/kube-prometheus-stack/values.yaml` — set `external_labels.cluster`
-      if not using the default `netra`.
-- [ ] `values/loki/values.yaml` and `values/tempo/values.yaml` — set real GCS
-      bucket names and Workload Identity annotations if on GKE.
+- [ ] GCS buckets exist and Loki/Tempo `serviceAccount.annotations` include
+      `iam.gke.io/gcp-service-account` (install.sh preflight checks this;
+      use `SKIP_GCS_PREFLIGHT=1` only for non-GCS smoke tests).
+- [ ] Cluster identity set via `values/cluster.yaml` or
+      `NETRA_CLUSTER=my-cluster ./scripts/install.sh`.
 - [ ] Storage class in `values/` matches your cluster (`standard` by default).
 - [ ] Grafana admin Secret exists or will be created by `install.sh`
       (`netra-grafana-admin`).
 - [ ] Loki and Tempo GCS buckets exist with matching retention lifecycle rules.
 - [ ] GKE Workload Identity bound for Loki/Tempo if using GCS.
-- [ ] Observability node pool exists (`workload=observability` label + taint).
+- [ ] Observability node pool exists: **`e2-standard-2`** (or larger), label
+      `workload=observability`, taint `workload=observability:NoSchedule`.
 
 ## After install
 
-- [ ] `scripts/verify.sh` returns 0.
+- [ ] `scripts/verify.sh` returns 0 (`scripts/verify.sh --deep` after prod cutover).
 - [ ] `scripts/validate.sh` returns 0 in CI.
 - [ ] Grafana datasources `Prometheus`, `Loki`, `Tempo`, `Alertmanager`
       all show green health.
@@ -36,10 +38,10 @@ Anything not checked here is a known gap.
       a private LB with mTLS, or an authenticated ingress (e.g.
       OAuth2 Proxy).
 - [ ] Alertmanager receiver tokens (PagerDuty, Slack, Opsgenie, SMTP)
-      are mounted from a Secret, **not** committed to this repo. The
-      Alertmanager `route` block in
-      `values/kube-prometheus-stack/values.yaml` ships with `null`
-      receivers; flip them on as receivers are wired.
+      are mounted from a Secret, **not** committed to this repo. Start from
+      `manifests/alertmanager/receivers-secret.example.yaml`. The default
+      Alertmanager config routes to `null`; `verify.sh` warns until real
+      receivers are wired.
 - [ ] Network policies in `manifests/networkpolicies/` are applied
       (`install.sh` does this). They restrict Loki/Tempo ingest to
       Alloy and the OTel Collector respectively; OTLP is open to all
@@ -52,7 +54,9 @@ Anything not checked here is a known gap.
 
 - [ ] Prometheus PVC usage < 50% after first 24h.
 - [ ] Loki ingest 5xx rate is zero outside of brief restart windows.
-- [ ] Tempo block_retention matches policy (7d, or 15d if changed).
+- [ ] Tempo block_retention matches policy (**7d default**, 15d if you
+      raised `tempo.retention` in values — traces are shorter-lived than
+      metrics/logs by default).
 - [ ] Alloy DaemonSet is running on every node in the cluster, including
       app pools.
 

@@ -10,6 +10,9 @@
 #
 # Retention: 15d (metrics).
 # Storage:   SSD PVC for Prometheus.
+#
+# Resource requests/limits target a single e2-standard-2 observability
+# node (2 vCPU, 8 GiB). Raise limits if you use e2-standard-4 or larger.
 
 fullnameOverride: netra-kps
 
@@ -24,8 +27,8 @@ defaultRules:
     # overlap (KubePodCrashLooping, Node* from node-exporter, etc.).
     etcd: true
     kubernetesApps: false
-    kubernetesResources: true
-    kubernetesStorage: true
+    kubernetesResources: false
+    kubernetesStorage: false
     kubernetesSystem: true
     kubeStateMetrics: true
     nodeExporterAlerting: false
@@ -60,8 +63,8 @@ prometheus:
     probeNamespaceSelector: {}
     probeSelector: {}
 
-    # Cluster identity for the observability stack. Do not set environment
-    # here — apps carry dev/stage/prod via pod labels (see app-integration.md).
+    # Cluster identity — install.sh overrides via values/cluster.yaml /
+    # NETRA_CLUSTER. Default shown here for helm template without install.
     externalLabels:
       cluster: netra
 
@@ -76,11 +79,11 @@ prometheus:
 
     resources:
       requests:
-        cpu: 500m
-        memory: 2Gi
+        cpu: 400m
+        memory: 1536Mi
       limits:
-        cpu: 2
-        memory: 8Gi
+        cpu: 1
+        memory: 2048Mi
 
     nodeSelector:
       workload: observability
@@ -117,7 +120,7 @@ alertmanager:
         memory: 128Mi
       limits:
         cpu: 200m
-        memory: 512Mi
+        memory: 384Mi
     nodeSelector:
       workload: observability
     tolerations:
@@ -127,9 +130,9 @@ alertmanager:
         effect: NoSchedule
 
   config:
-    # Minimal placeholder routing. Real receivers go in a separate
-    # Alertmanager Secret managed outside this chart so PagerDuty/Slack
-    # tokens never live in Git.
+    # Default routes to null so we never page into the void before real
+    # receivers are wired. See manifests/alertmanager/receivers-secret.example.yaml
+    # and docs/production-checklist.md before pointing a pager here.
     route:
       receiver: "null"
       group_by: ["alertname", "environment", "service"]
@@ -145,6 +148,17 @@ alertmanager:
           receiver: "null"
     receivers:
       - name: "null"
+    # Example (after mounting netra-alertmanager-receivers Secret):
+    # route:
+    #   receiver: slack-platform
+    #   routes:
+    #     - matchers: [severity = "critical"]
+    #       receiver: pagerduty-oncall
+    # receivers:
+    #   - name: pagerduty-oncall
+    #     pagerduty_configs: [{ routing_key: "<KEY>", send_resolved: true }]
+    #   - name: slack-platform
+    #     slack_configs: [{ api_url: "<WEBHOOK>", channel: "#alerts" }]
 
   service:
     type: ClusterIP
@@ -173,7 +187,7 @@ grafana:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
-      searchNamespace: ALL
+      searchNamespace: observability
       folderAnnotation: grafana_folder
       provider:
         foldersFromFilesStructure: true
@@ -181,7 +195,7 @@ grafana:
       enabled: true
       label: grafana_datasource
       labelValue: "1"
-      searchNamespace: ALL
+      searchNamespace: observability
 
   # Datasources are also shipped as a ConfigMap under
   # manifests/grafana/datasources-configmap.yaml. Disable the chart's own
@@ -208,8 +222,8 @@ grafana:
       cpu: 100m
       memory: 256Mi
     limits:
-      cpu: 1
-      memory: 1Gi
+      cpu: 500m
+      memory: 384Mi
 
   nodeSelector:
     workload: observability
@@ -249,7 +263,7 @@ prometheusOperator:
       memory: 128Mi
     limits:
       cpu: 200m
-      memory: 512Mi
+      memory: 384Mi
 
 # node-exporter runs on every node so we get node metrics from app pools too.
 nodeExporter:
@@ -279,4 +293,4 @@ kube-state-metrics:
       memory: 64Mi
     limits:
       cpu: 200m
-      memory: 256Mi
+      memory: 192Mi

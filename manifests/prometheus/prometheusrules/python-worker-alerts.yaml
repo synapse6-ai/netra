@@ -28,7 +28,7 @@ spec:
           for: 10m
           labels:
             severity: warning
-            service: python-worker
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Oldest queued job age > 5m on {{ $labels.service }}/{{ $labels.queue }} ({{ $labels.environment }})"
@@ -54,7 +54,7 @@ spec:
           for: 15m
           labels:
             severity: critical
-            service: python-worker
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Worker failure rate > 5% on {{ $labels.service }} ({{ $labels.environment }})"
@@ -70,7 +70,7 @@ spec:
           for: 10m
           labels:
             severity: warning
-            service: python-worker
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Worker retry spike on {{ $labels.service }} ({{ $labels.environment }})"
@@ -90,7 +90,7 @@ spec:
           for: 15m
           labels:
             severity: warning
-            service: python-worker
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Worker throughput dropped >50% on {{ $labels.service }} ({{ $labels.environment }})"

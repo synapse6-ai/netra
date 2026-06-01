@@ -1,0 +1,25 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          curl -fsSL -o /tmp/prom.tar.gz \
+            https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz
+          tar -xzf /tmp/prom.tar.gz -C /tmp
+          sudo mv /tmp/prometheus-2.53.0.linux-amd64/promtool /usr/local/bin/promtool
+
+      - name: Install PyYAML for promtool rule lint
+        run: pip install pyyaml
+
+      - name: Run validate.sh
+        run: ./scripts/validate.sh

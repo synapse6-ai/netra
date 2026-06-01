@@ -41,7 +41,7 @@ spec:
           for: 10m
           labels:
             severity: critical
-            service: python-api
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Python API 5xx > 2% on {{ $labels.service }} ({{ $labels.environment }})"
@@ -60,7 +60,7 @@ spec:
           for: 10m
           labels:
             severity: warning
-            service: python-api
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Python API p95 latency > 1s on {{ $labels.service }} ({{ $labels.environment }})"
@@ -74,7 +74,7 @@ spec:
           for: 5m
           labels:
             severity: critical
-            service: python-api
+            service: '{{ $labels.service }}'
             team: backend
           annotations:
             summary: "Python API target down: {{ $labels.instance }} ({{ $labels.environment }})"
