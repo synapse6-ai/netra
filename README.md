@@ -24,12 +24,14 @@ We built Netra because platform work should **multiply** product teams, not bloc
 
 ## Who Netra is for
 
-| You are… | Netra helps you… |
-| -------- | ---------------- |
-| **A platform / DevOps engineer** standing up GKE (or any serious K8s) | Skip the "which chart goes with which sidecar?" spreadsheet and install a coherent stack with one script |
-| **A startup with GCP credits** | Run a real metrics/logs/traces plane without a five-figure SaaS line item — and keep your data in *your* buckets |
-| **A team validating self-hosted observability** | Run Netra **alongside** your existing vendor, prove parity on dashboards and alerts, then cut over on your timeline ([migration guide](docs/datadog-migration.md)) |
-| **An OSS contributor** | Extend a boilerplate designed for **more tools, not more forks** — see [Roadmap & extension model](#roadmap--extension-model) below |
+
+| You are…                                                              | Netra helps you…                                                                                                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A platform / DevOps engineer** standing up GKE (or any serious K8s) | Skip the "which chart goes with which sidecar?" spreadsheet and install a coherent stack with one script                                                           |
+| **A startup with GCP credits**                                        | Run a real metrics/logs/traces plane without a five-figure SaaS line item — and keep your data in *your* buckets                                                   |
+| **A team validating self-hosted observability**                       | Run Netra **alongside** your existing vendor, prove parity on dashboards and alerts, then cut over on your timeline ([migration guide](docs/datadog-migration.md)) |
+| **An OSS contributor**                                                | Extend a boilerplate designed for **more tools, not more forks** — see [Roadmap & extension model](#roadmap--extension-model) below                                |
+
 
 If you want a turn-key SaaS with zero cluster ops, Netra is not that — and we're honest about it. If you want **control, composability, and a repo you can fork without shame**, you're in the right place.
 
@@ -41,14 +43,16 @@ Netra is not a empty Helm umbrella chart. It's a **curated platform** with opini
 
 ### Unified signals — one Grafana, one mental model
 
-| Signal | Powered by | What Netra adds beyond "just install the chart" |
-| ------ | ---------- | ----------------------------------------------- |
-| **Metrics** | Prometheus, Alertmanager, kube-state-metrics, node-exporter | Git-owned `PrometheusRule`s, ServiceMonitor conventions, platform + service dashboards |
-| **Logs** | Loki on object storage (GCS) | Alloy DaemonSet on every node, cardinality guardrails, structured log pipeline |
-| **Traces** | Tempo on object storage (GCS) | OpenTelemetry Collector as the blessed ingest path, network policies |
-| **Synthetic monitoring** | blackbox_exporter | In-cluster stack health probes + pattern for per-app, per-env external checks |
-| **Real user monitoring** | Grafana Faro via Alloy | Optional browser SDK path with CORS hooks ready to configure |
-| **Operations** | Markdown runbooks | Every critical alert links to a runbook — onboarding-friendly for on-call |
+
+| Signal                   | Powered by                                                  | What Netra adds beyond "just install the chart"                                        |
+| ------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Metrics**              | Prometheus, Alertmanager, kube-state-metrics, node-exporter | Git-owned `PrometheusRule`s, ServiceMonitor conventions, platform + service dashboards |
+| **Logs**                 | Loki on object storage (GCS)                                | Alloy DaemonSet on every node, cardinality guardrails, structured log pipeline         |
+| **Traces**               | Tempo on object storage (GCS)                               | OpenTelemetry Collector as the blessed ingest path, network policies                   |
+| **Synthetic monitoring** | blackbox_exporter                                           | In-cluster stack health probes + pattern for per-app, per-env external checks          |
+| **Real user monitoring** | Grafana Faro via Alloy                                      | Optional browser SDK path with CORS hooks ready to configure                           |
+| **Operations**           | Markdown runbooks                                           | Every critical alert links to a runbook — onboarding-friendly for on-call              |
+
 
 ### GitOps observability — review it like code
 
@@ -199,23 +203,27 @@ Run three Deployments with `environment: dev`, `stage`, and `prod` — same name
 
 Defaults target a small dev cluster. Override for production:
 
-| Setting | Location | Default |
-| ------- | -------- | ------- |
-| Cluster identity (stack only) | `values/kube-prometheus-stack/values.yaml` → `externalLabels.cluster` | `netra` |
-| PVC storage class | kps, loki, tempo values | `standard` |
-| Log / trace buckets | `values/loki/values.yaml`, `values/tempo/values.yaml` | `netra-loki-data`, `netra-tempo-data` |
-| GKE Workload Identity | `serviceAccount.annotations` in loki/tempo | unset — add your GSA |
-| Grafana admin | auto-created by install | Secret `netra-grafana-admin` |
-| RUM CORS | `values/alloy/values.yaml` | `http://localhost:3000` |
+
+| Setting                       | Location                                                              | Default                               |
+| ----------------------------- | --------------------------------------------------------------------- | ------------------------------------- |
+| Cluster identity (stack only) | `values/kube-prometheus-stack/values.yaml` → `externalLabels.cluster` | `netra`                               |
+| PVC storage class             | kps, loki, tempo values                                               | `standard`                            |
+| Log / trace buckets           | `values/loki/values.yaml`, `values/tempo/values.yaml`                 | `netra-loki-data`, `netra-tempo-data` |
+| GKE Workload Identity         | `serviceAccount.annotations` in loki/tempo                            | unset — add your GSA                  |
+| Grafana admin                 | auto-created by install                                               | Secret `netra-grafana-admin`          |
+| RUM CORS                      | `values/alloy/values.yaml`                                            | `http://localhost:3000`               |
+
 
 ### Retention defaults
 
-| Signal | Retention | Backend |
-| ------ | --------- | ------- |
-| Metrics | 15 days | Prometheus PVC |
-| Logs | 15 days | Loki → GCS |
-| Traces | 7 days (configurable to 15) | Tempo → GCS |
-| Dashboards, alerts, runbooks | indefinite | Git |
+
+| Signal                       | Retention                   | Backend        |
+| ---------------------------- | --------------------------- | -------------- |
+| Metrics                      | 15 days                     | Prometheus PVC |
+| Logs                         | 15 days                     | Loki → GCS     |
+| Traces                       | 7 days (configurable to 15) | Tempo → GCS    |
+| Dashboards, alerts, runbooks | indefinite                  | Git            |
+
 
 ---
 
@@ -233,15 +241,17 @@ Grafana OSS · Prometheus · Alertmanager · Loki · Alloy · Tempo · OpenTelem
 
 These are **not** in the core install today. They represent the direction of the boilerplate — community contributions and RFCs welcome:
 
-| Layer | Example OSS tools | Typical value add |
-| ----- | ----------------- | ----------------- |
-| **Long-term metrics** | Thanos, Mimir, Cortex | Beyond 15d Prometheus retention without SaaS |
-| **Profiling** | Pyroscope, Parca | Continuous profiling linked to traces |
-| **Security signals** | Falco, Trivy | Runtime and image risk alongside app metrics |
-| **Cost visibility** | OpenCost, Kubecost OSS patterns | Show back to platform what observability and workloads cost |
-| **Search & analytics** | OpenSearch (where justified) | Heavy log analytics beyond Loki's sweet spot |
-| **Developer portal** | Backstage plugins | Observability links from service catalog to Grafana |
-| **Chaos & reliability** | Litmus, probe extensions | Game days wired into the same alert/runbook loop |
+
+| Layer                   | Example OSS tools               | Typical value add                                           |
+| ----------------------- | ------------------------------- | ----------------------------------------------------------- |
+| **Long-term metrics**   | Thanos, Mimir, Cortex           | Beyond 15d Prometheus retention without SaaS                |
+| **Profiling**           | Pyroscope, Parca                | Continuous profiling linked to traces                       |
+| **Security signals**    | Falco, Trivy                    | Runtime and image risk alongside app metrics                |
+| **Cost visibility**     | OpenCost, Kubecost OSS patterns | Show back to platform what observability and workloads cost |
+| **Search & analytics**  | OpenSearch (where justified)    | Heavy log analytics beyond Loki's sweet spot                |
+| **Developer portal**    | Backstage plugins               | Observability links from service catalog to Grafana         |
+| **Chaos & reliability** | Litmus, probe extensions        | Game days wired into the same alert/runbook loop            |
+
 
 If you're evaluating Netra as a **foundation to extend**, star the repo and watch for integration PRs — or open an RFC for the tool you need. The architecture doc's extension points (`values/` per component, namespace-scoped manifests, sidecar-loaded dashboards) are deliberately boring so **new tools feel native, not bolted on**.
 
@@ -263,13 +273,15 @@ netra/
 
 ## Documentation
 
-| Document | Read this when… |
-| -------- | ---------------- |
-| [architecture.md](docs/architecture.md) | You need pipelines, node scheduling, storage, or the multi-env model |
-| [app-integration.md](docs/app-integration.md) | You're wiring a new service into Netra |
-| [production-checklist.md](docs/production-checklist.md) | You're going beyond a dev cluster |
-| [dashboards-alerts-in-git.md](docs/dashboards-alerts-in-git.md) | Your team needs the GitOps workflow for Grafana |
-| [datadog-migration.md](docs/datadog-migration.md) | You're validating Netra against an existing vendor |
+
+| Document                                                        | Read this when…                                                      |
+| --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [architecture.md](docs/architecture.md)                         | You need pipelines, node scheduling, storage, or the multi-env model |
+| [app-integration.md](docs/app-integration.md)                   | You're wiring a new service into Netra                               |
+| [production-checklist.md](docs/production-checklist.md)         | You're going beyond a dev cluster                                    |
+| [dashboards-alerts-in-git.md](docs/dashboards-alerts-in-git.md) | Your team needs the GitOps workflow for Grafana                      |
+| [datadog-migration.md](docs/datadog-migration.md)               | You're validating Netra against an existing vendor                   |
+
 
 ---
 
@@ -295,6 +307,4 @@ We're building Netra in the open because observability infrastructure belongs in
 
 ---
 
-<p align="center">
-  <strong>Netra</strong> — see your whole cluster. Know which environment broke. Own the stack.
-</p>
+**Netra** — see your whole cluster. Know which environment broke. Own the stack.
