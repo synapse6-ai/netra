@@ -1,0 +1,84 @@
+---
+# Cross-cluster ingest NetworkPolicies for Synapse6 central hub.
+#
+# REPLACE each placeholder CIDR with the app cluster Pod CIDR before install.
+# install-central.sh refuses to run while "REPLACE" appears in this directory.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-otel-collector-cross-cluster
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-otel-collector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/14   # REPLACE: guardrailstudio-dev
+        - ipBlock:
+            cidr: 10.4.0.0/14   # REPLACE: guardrailstudio-stg
+        - ipBlock:
+            cidr: 10.8.0.0/14   # REPLACE: guardrailstudio-prod
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-ingest-gateway-cross-cluster
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: netra-ingest-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/14   # REPLACE: guardrailstudio-dev
+        - ipBlock:
+            cidr: 10.4.0.0/14   # REPLACE: guardrailstudio-stg
+        - ipBlock:
+            cidr: 10.8.0.0/14   # REPLACE: guardrailstudio-prod
+      ports:
+        - port: 3100
+          protocol: TCP
+        - port: 9090
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-alloy-faro-cross-cluster
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-alloy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/14   # REPLACE: guardrailstudio-dev
+        - ipBlock:
+            cidr: 10.4.0.0/14   # REPLACE: guardrailstudio-stg
+        - ipBlock:
+            cidr: 10.8.0.0/14   # REPLACE: guardrailstudio-prod
+      ports:
+        - port: 12347
+          protocol: TCP

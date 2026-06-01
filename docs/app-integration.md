@@ -83,14 +83,20 @@ Do **not** send traces directly to Tempo — the collector is the blessed
 path. NetworkPolicy blocks direct Tempo OTLP from other pods.
 
 Set `deployment.environment` and `service.name` on every span via OTLP
-resource attributes. The collector upserts `cluster` only.
+resource attributes.
+
+On a **single-cluster** install, the Netra OTel collector upserts a
+`cluster` resource attribute from `NETRA_CLUSTER` / `values/cluster.yaml`.
+Multi-cluster hub deployments skip that upsert on the central collector;
+app-cluster agents own `cluster` and `k8s.cluster.name` instead (see
+`deploy/` bundles).
 
 ## Logs (Alloy → Loki)
 
 - Write structured logs to **stdout**. Alloy's per-node DaemonSet collects
   them automatically; no sidecar, no Promtail.
 - **Low-cardinality labels only**: `environment`, `namespace`,
-  `service_name`, `pod`, `container`, `level`, `cluster`, `team`. Keep
+  `service_name`, `pod`, `container`, `level`, `team`, `cluster`. Keep
   `request_id` / `trace_id` / `span_id` / `user_id` / `tenant_id` in the
   log body or structured metadata — **never** as Loki labels.
 - Emit `trace_id` / `span_id` in logs to light up Loki↔Tempo correlation.

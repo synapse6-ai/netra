@@ -1,0 +1,20 @@
+# Synapse6 central — Alloy on observability cluster (stack logs + Faro only).
+# INGEST_AUTH_TOKEN mounts netra-ingest-auth for Faro → OTel bearer auth.
+
+alloy:
+  extraEnv:
+    - name: INGEST_AUTH_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: netra-ingest-auth
+          key: token
+  resources:
+    limits:
+      memory: 512Mi
+
+service:
+  extraPorts:
+    - name: faro
+      port: 12347
+      targetPort: 12347
+      protocol: TCP

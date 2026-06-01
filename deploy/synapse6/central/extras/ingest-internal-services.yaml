@@ -1,0 +1,94 @@
+---
+# Internal load balancers for cross-cluster ingest (GKE internal TCP passthrough).
+# Map ILB IPs in private DNS (HTTP — TLS terminates at org edge if required):
+#   otel.obs.internal.synapse6.ai  → netra-ingest-otel:4317/4318
+#   loki.obs.internal.synapse6.ai  → netra-ingest-loki:3100
+#   prom.obs.internal.synapse6.ai  → netra-ingest-prometheus:9090
+#   faro.obs.internal.synapse6.ai  → netra-ingest-faro:12347
+#
+# Auth:
+#   OTel  — bearertokenauth on central collector
+#   Loki  — nginx gateway Bearer check
+#   Prom  — nginx gateway Bearer check on /api/v1/write
+#   Faro  — no bearer (browser SDK); restrict via CORS + NP CIDRs + edge HTTPS
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: netra-ingest-otel
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+  annotations:
+    cloud.google.com/load-balancer-type: Internal
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/instance: netra-otel-collector
+    app.kubernetes.io/name: opentelemetry-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netra-ingest-loki
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+  annotations:
+    cloud.google.com/load-balancer-type: Internal
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: netra-ingest-gateway
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netra-ingest-prometheus
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+  annotations:
+    cloud.google.com/load-balancer-type: Internal
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: netra-ingest-gateway
+  ports:
+    - name: remote-write
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netra-ingest-faro
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+  annotations:
+    cloud.google.com/load-balancer-type: Internal
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/instance: netra-alloy
+  ports:
+    - name: faro
+      port: 12347
+      targetPort: 12347
+      protocol: TCP

@@ -1,0 +1,81 @@
+# Synapse6 central — OTel Collector (full config).
+# Does NOT upsert cluster — app agents own k8s.cluster.name + deployment.environment.
+# Validates ingest Bearer token on OTLP (netra-ingest-auth Secret).
+
+mode: deployment
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+extraEnvs:
+  - name: INGEST_AUTH_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: netra-ingest-auth
+        key: token
+
+config:
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+    bearertokenauth/ingest:
+      scheme: Bearer
+      token: ${env:INGEST_AUTH_TOKEN}
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+          auth:
+            authenticator: bearertokenauth/ingest
+        http:
+          endpoint: 0.0.0.0:4318
+          auth:
+            authenticator: bearertokenauth/ingest
+
+  processors:
+    batch:
+      send_batch_size: 2048
+      timeout: 5s
+      send_batch_max_size: 4096
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+
+  exporters:
+    otlp/tempo:
+      endpoint: netra-tempo.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+
+  service:
+    extensions: [health_check, bearertokenauth/ingest]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]
+    telemetry:
+      metrics:
+        address: 0.0.0.0:8888
+
+service:
+  type: ClusterIP
+
+ports:
+  otlp:
+    enabled: true
+  otlp-http:
+    enabled: true

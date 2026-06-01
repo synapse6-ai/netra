@@ -1,0 +1,102 @@
+# Synapse6 app-cluster OTel agent — traces → central collector.
+# Rendered by install-agents.sh via envsubst.
+
+fullnameOverride: synapse6-agent-otel
+
+mode: daemonset
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+presets:
+  logsCollection:
+    enabled: false
+  kubernetesAttributes:
+    enabled: true
+  kubeletMetrics:
+    enabled: false
+  hostMetrics:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+tolerations:
+  - operator: Exists
+
+extraEnvs:
+  - name: INGEST_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: synapse6-ingest-auth
+        key: token
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+
+service:
+  type: ClusterIP
+
+config:
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch:
+      send_batch_size: 1024
+      timeout: 5s
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    resource/agent:
+      attributes:
+        - key: k8s.cluster.name
+          value: ${K8S_CLUSTER}
+          action: upsert
+        - key: cluster
+          value: ${K8S_CLUSTER}
+          action: upsert
+        - key: deployment.environment
+          value: ${ENVIRONMENT}
+          action: upsert
+
+  exporters:
+    otlp/central:
+      endpoint: ${CENTRAL_OTEL_ENDPOINT}
+      tls:
+        insecure: true
+      headers:
+        Authorization: "Bearer ${env:INGEST_TOKEN}"
+
+  service:
+    extensions: [health_check]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, resource/agent, batch]
+        exporters: [otlp/central]
+
+serviceMonitor:
+  enabled: false

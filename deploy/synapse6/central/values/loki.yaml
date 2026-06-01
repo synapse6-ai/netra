@@ -1,0 +1,28 @@
+# Synapse6 central — Loki overlay.
+# Edit WI annotation and bucket name before install.
+
+loki:
+  storage:
+    bucketNames:
+      chunks: synapse6-obs-netra-loki
+      ruler: synapse6-obs-netra-loki
+      admin: synapse6-obs-netra-loki
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 2Gi
+  persistence:
+    storageClass: premium-rwo
+    size: 50Gi
+
+serviceAccount:
+  create: true
+  annotations:
+    # REQUIRED: set before install-central.sh
+    iam.gke.io/gcp-service-account: netra-loki@synapse6-observability.iam.gserviceaccount.com

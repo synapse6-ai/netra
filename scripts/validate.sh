@@ -17,6 +17,7 @@ EXIT=0
 
 ok()   { printf '  \033[1;32m[ ok ]\033[0m %s\n' "$*"; }
 fail() { printf '  \033[1;31m[fail]\033[0m %s\n' "$*"; EXIT=1; }
+warn() { printf '  \033[1;33m[warn]\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;36m== %s ==\033[0m\n' "$*"; }
 
 require() {
@@ -120,6 +121,55 @@ for d in architecture.md datadog-migration.md app-integration.md \
          dashboards-alerts-in-git.md production-checklist.md; do
   if [[ -s "$REPO_ROOT/docs/$d" ]]; then ok "$d"; else fail "missing $d"; fi
 done
+
+# --- install.sh stock path (no customer coupling) ---------------------
+section "install.sh stock path"
+if grep -q 'synapse6' "$REPO_ROOT/scripts/install.sh" 2>/dev/null; then
+  fail "install.sh contains synapse6-specific strings"
+else
+  ok "install.sh has no synapse6-specific strings"
+fi
+for hook in NETRA_VALUES_OVERLAY NETRA_SKIP_CLUSTER_LABEL NETRA_NETWORKPOLICIES_DIR; do
+  if grep -q "$hook" "$REPO_ROOT/scripts/install.sh"; then ok "hook documented: $hook"; else fail "missing hook: $hook"; fi
+done
+
+# --- deploy/synapse6 bundle (optional) --------------------------------
+section "deploy/synapse6/"
+SYNAPSE6="$REPO_ROOT/deploy/synapse6"
+if [[ -d "$SYNAPSE6" ]]; then
+  for s in scripts/install-central.sh scripts/install-agents.sh scripts/bootstrap-gcp.sh \
+           scripts/verify-synapse6-central.sh scripts/verify-synapse6-agents.sh; do
+    if bash -n "$SYNAPSE6/$s" 2>/dev/null; then ok "$s (bash -n)"; else fail "$s (bash -n)"; fi
+  done
+  if [[ -d "$SYNAPSE6/central/extras" ]]; then ok "central/extras/"; else fail "missing central/extras/"; fi
+  if [[ -d "$SYNAPSE6/central/manifests/networkpolicies" ]]; then ok "central/manifests/networkpolicies/"; else fail "missing networkpolicies/"; fi
+  if [[ -s "$SYNAPSE6/docs/central-observability.md" ]]; then
+    ok "docs/central-observability.md"
+  else
+    fail "missing deploy/synapse6/docs/central-observability.md"
+  fi
+  if grep -qr 'REPLACE' "$SYNAPSE6/central/manifests/networkpolicies/" 2>/dev/null; then
+    warn "networkpolicies/ has REPLACE placeholders (expected until prod CIDRs set)"
+  else
+    ok "networkpolicies/ CIDRs configured"
+  fi
+  if grep -q 'INGEST_AUTH_TOKEN' "$SYNAPSE6/central/alloy/config.alloy" 2>/dev/null; then
+    ok "central Alloy Faro → OTel bearer auth wired"
+  else
+    fail "central Alloy missing INGEST_AUTH_TOKEN on OTel exporter"
+  fi
+  shopt -s nullglob
+  for f in "$SYNAPSE6"/dashboards/*.json; do
+    base="$(basename "$f")"
+    if jq empty "$f" 2>/dev/null; then ok "dashboards/$base"; else fail "dashboards/$base (invalid JSON)"; fi
+  done
+  shopt -u nullglob
+  if ! ls "$SYNAPSE6"/dashboards/*.json >/dev/null 2>&1; then
+    fail "no dashboards in deploy/synapse6/dashboards/"
+  fi
+else
+  ok "skipped (no deploy/synapse6 bundle)"
+fi
 
 # --- Placeholder secret sniff test ------------------------------------
 section "secret/placeholder sniff test"

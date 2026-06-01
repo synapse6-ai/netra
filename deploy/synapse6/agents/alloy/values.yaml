@@ -1,0 +1,35 @@
+# Synapse6 app-cluster Alloy agent (DaemonSet).
+
+fullnameOverride: synapse6-agent-alloy
+
+controller:
+  type: daemonset
+  nodeSelector: {}
+  tolerations:
+    - operator: Exists
+
+alloy:
+  podLabels:
+    app.kubernetes.io/part-of: synapse6-observability-agent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  extraEnv:
+    - name: INGEST_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: synapse6-ingest-auth
+          key: token
+
+  configMap:
+    create: true
+
+service:
+  enabled: false
+
+serviceMonitor:
+  enabled: false

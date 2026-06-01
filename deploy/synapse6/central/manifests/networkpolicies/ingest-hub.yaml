@@ -1,0 +1,131 @@
+---
+# Hub in-cluster ingest NetworkPolicies (Synapse6 central).
+# Cross-cluster ipBlock rules live in ingest-cross-cluster.yaml.
+#
+# Diff vs stock manifests/networkpolicies/ingest.yaml:
+#   - OTel: Alloy only (no namespaceSelector — apps use app-cluster agents)
+#   - Loki: Alloy + gateway (cross-cluster pushes proxied through gateway)
+#   - Prometheus: gateway + KPS only (remote-write via gateway ILB)
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-loki-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-loki
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-alloy
+              netra.io/collector: loki
+      ports:
+        - port: 3100
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 3100
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: netra-ingest-gateway
+      ports:
+        - port: 3100
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-tempo-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-tempo
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-otel-collector
+              netra.io/collector: otlp
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 3200
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-otel-collector-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: netra-otel-collector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-alloy
+              netra.io/collector: loki
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-prometheus-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: netra-ingest-gateway
+      ports:
+        - port: 9090
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 9090
+          protocol: TCP
