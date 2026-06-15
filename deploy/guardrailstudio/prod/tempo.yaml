@@ -1,0 +1,18 @@
+# GuardrailStudio prod — Tempo GCS + Workload Identity.
+
+tempo:
+  retention: 360h
+  storage:
+    trace:
+      backend: gcs
+      gcs:
+        bucket_name: synapse6-prod-netra-tempo
+
+persistence:
+  storageClassName: premium-rwo
+  size: 50Gi
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-tempo@synapse6-prod.iam.gserviceaccount.com

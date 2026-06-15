@@ -1,0 +1,17 @@
+# GuardrailStudio dev — Tempo GCS + Workload Identity.
+# Prerequisite: deploy/guardrailstudio/scripts/bootstrap-gcp.sh (PROJECT=synapse6ai-dev)
+
+tempo:
+  storage:
+    trace:
+      backend: gcs
+      gcs:
+        bucket_name: synapse6ai-dev-netra-tempo
+
+persistence:
+  storageClassName: standard
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-tempo@synapse6ai-dev.iam.gserviceaccount.com

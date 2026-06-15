@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netra-grafana
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: netra-grafana-ingress
+    app.kubernetes.io/part-of: netra
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - obs-dev.instantevidence.ai
+      secretName: netra-grafana-tls-dev
+  rules:
+    - host: obs-dev.instantevidence.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-oauth2-proxy
+                port:
+                  number: 4180

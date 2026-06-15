@@ -1,0 +1,18 @@
+# GuardrailStudio dev — Loki GCS + Workload Identity.
+# Prerequisite: deploy/guardrailstudio/scripts/bootstrap-gcp.sh (PROJECT=synapse6ai-dev)
+
+loki:
+  storage:
+    bucketNames:
+      chunks: synapse6ai-dev-netra-loki
+      ruler: synapse6ai-dev-netra-loki
+      admin: synapse6ai-dev-netra-loki
+
+singleBinary:
+  persistence:
+    storageClass: standard
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-loki@synapse6ai-dev.iam.gserviceaccount.com

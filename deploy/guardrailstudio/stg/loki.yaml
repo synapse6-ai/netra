@@ -1,0 +1,17 @@
+# GuardrailStudio stg — Loki GCS + Workload Identity.
+
+loki:
+  storage:
+    bucketNames:
+      chunks: synapse6ai-stg-netra-loki
+      ruler: synapse6ai-stg-netra-loki
+      admin: synapse6ai-stg-netra-loki
+
+singleBinary:
+  persistence:
+    storageClass: standard
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-loki@synapse6ai-stg.iam.gserviceaccount.com

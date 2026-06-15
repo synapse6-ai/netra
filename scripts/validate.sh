@@ -192,6 +192,47 @@ else
   ok "skipped (no deploy/synapse6 bundle)"
 fi
 
+# --- deploy/guardrailstudio bundle ------------------------------------
+section "deploy/guardrailstudio/"
+GS="$REPO_ROOT/deploy/guardrailstudio"
+if [[ -d "$GS" ]]; then
+  for env in dev stg prod; do
+    for f in cluster.yaml loki.yaml tempo.yaml kube-prometheus-stack.yaml grafana-ingress.yaml; do
+      if [[ -s "$GS/$env/$f" ]]; then
+        ok "$env/$f"
+      else
+        fail "missing or empty $env/$f"
+      fi
+    done
+    if grep -q 'iam.gke.io/gcp-service-account' "$GS/$env/loki.yaml" 2>/dev/null; then
+      ok "$env/loki.yaml WI annotation"
+    else
+      fail "$env/loki.yaml missing WI annotation"
+    fi
+    if grep -q 'iam.gke.io/gcp-service-account' "$GS/$env/tempo.yaml" 2>/dev/null; then
+      ok "$env/tempo.yaml WI annotation"
+    else
+      fail "$env/tempo.yaml missing WI annotation"
+    fi
+  done
+  for s in scripts/bootstrap-gcp.sh scripts/label-observability-node.sh \
+    scripts/install-env.sh; do
+    if [[ -x "$GS/$s" ]]; then ok "$s (executable)"; else fail "$s (missing or not executable)"; fi
+  done
+  if [[ -s "$REPO_ROOT/.github/workflows/deploy-guardrailstudio-dev.yml" ]]; then
+    ok ".github/workflows/deploy-guardrailstudio-dev.yml"
+  else
+    fail "missing .github/workflows/deploy-guardrailstudio-dev.yml"
+  fi
+  if [[ -s "$GS/manifests/grafana-oauth2-proxy.yaml" ]]; then
+    ok "manifests/grafana-oauth2-proxy.yaml"
+  else
+    fail "missing manifests/grafana-oauth2-proxy.yaml"
+  fi
+else
+  fail "missing deploy/guardrailstudio/"
+fi
+
 # --- Placeholder secret sniff test ------------------------------------
 section "secret/placeholder sniff test"
 

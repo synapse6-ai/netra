@@ -27,7 +27,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 VALUES_DIR="$REPO_ROOT/values"
 MANIFESTS_DIR="$REPO_ROOT/manifests"
 DASHBOARDS_DIR="$REPO_ROOT/dashboards"
-HELM_TIMEOUT="${HELM_TIMEOUT:-15m}"
+HELM_TIMEOUT="${HELM_TIMEOUT:-30m}"
 TMPFILES=()
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -142,21 +142,65 @@ config:
 EOF
 }
 
+ensure_observability_node() {
+  local ready_nodes
+  ready_nodes=$(kubectl get nodes -l workload=observability --no-headers 2>/dev/null \
+    | awk '$2 == "Ready" { c++ } END { print c + 0 }')
+  [[ "${ready_nodes:-0}" -ge 1 ]] && return 0
+
+  # ponytail: couples generic install.sh to guardrailstudio bundle; hub installs skip via NETRA_SKIP_AUTO_LABEL=1
+  local label_script="$REPO_ROOT/deploy/guardrailstudio/scripts/label-observability-node.sh"
+  if [[ "${NETRA_SKIP_AUTO_LABEL:-0}" == "1" ]] || [[ ! -x "$label_script" ]]; then
+    return 1
+  fi
+
+  warn "no Ready node with workload=observability (GKE node replacement?) — auto-labeling"
+  "$label_script"
+}
+
+cleanup_stuck_helm_release() {
+  local release="$1"
+  local status
+  status="$(helm list -n "$NS" -f "^${release}$" -o json 2>/dev/null \
+    | jq -r '.[0].status // empty')"
+  case "$status" in
+    failed|pending-install|pending-upgrade|pending-rollback|uninstalling)
+      warn "removing stuck Helm release ${release} (status=${status})"
+      helm uninstall "$release" -n "$NS" 2>/dev/null || true
+      ;;
+  esac
+}
+
+helm_release() {
+  local release="$1"
+  shift
+  cleanup_stuck_helm_release "$release"
+  # shellcheck disable=SC2068
+  helm upgrade --install "$release" "$@" \
+    --namespace "$NS" \
+    --timeout "$HELM_TIMEOUT" \
+    --wait=watcher \
+    --rollback-on-failure
+}
+
 preflight() {
   say "Preflight checks"
+
+  if ! ensure_observability_node; then
+    die "no Ready node with label workload=observability.
+
+  Label a node (single-node dev: label only, no taint):
+    ./deploy/guardrailstudio/scripts/label-observability-node.sh
+
+  Multi-node pools also need:
+    kubectl taint node <NODE> workload=observability:NoSchedule --overwrite
+
+  See manifests/node-scheduling.yaml"
+  fi
 
   local ready_nodes
   ready_nodes=$(kubectl get nodes -l workload=observability --no-headers 2>/dev/null \
     | awk '$2 == "Ready" { c++ } END { print c + 0 }')
-  if [[ "${ready_nodes:-0}" -lt 1 ]]; then
-    die "no Ready node with label workload=observability.
-
-  Prepare a dedicated observability node pool first:
-    kubectl label node <NODE> workload=observability --overwrite
-    kubectl taint  node <NODE> workload=observability:NoSchedule --overwrite
-
-  See manifests/node-scheduling.yaml"
-  fi
   echo "  observability node pool: ${ready_nodes} Ready node(s)"
 
   if [[ "${SKIP_GCS_PREFLIGHT:-0}" != "1" ]]; then
@@ -239,40 +283,31 @@ kubectl create configmap netra-grafana-branding \
 # -------------------------------------------------------------------------
 say "Installing kube-prometheus-stack (netra-kps)"
 # shellcheck disable=SC2046
-helm upgrade --install netra-kps prometheus-community/kube-prometheus-stack \
-  --namespace "$NS" \
+helm_release netra-kps prometheus-community/kube-prometheus-stack \
   --version 86.1.0 \
-  $(helm_values_kps) \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  $(helm_values_kps)
 
 say "Installing Loki (netra-loki)"
-helm upgrade --install netra-loki grafana-community/loki \
-  --namespace "$NS" \
+# shellcheck disable=SC2046
+helm_release netra-loki grafana-community/loki \
   --version 17.1.5 \
   --values "$VALUES_DIR/loki/values.yaml" \
-  $(overlay_values loki) \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  $(overlay_values loki)
 
 say "Installing Alloy (netra-alloy)"
-helm upgrade --install netra-alloy grafana/alloy \
-  --namespace "$NS" \
+# shellcheck disable=SC2046
+helm_release netra-alloy grafana/alloy \
   --version 1.8.2 \
   --values "$VALUES_DIR/alloy/values.yaml" \
   $(overlay_values alloy) \
-  --set-file alloy.configMap.content="$ALLOY_CONFIG" \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  --set-file alloy.configMap.content="$ALLOY_CONFIG"
 
 say "Installing Tempo (netra-tempo)"
-helm upgrade --install netra-tempo grafana-community/tempo \
-  --namespace "$NS" \
+# shellcheck disable=SC2046
+helm_release netra-tempo grafana-community/tempo \
   --version 2.2.0 \
   --values "$VALUES_DIR/tempo/values.yaml" \
-  $(overlay_values tempo) \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  $(overlay_values tempo)
 
 say "Installing OpenTelemetry Collector (netra-otel-collector)"
 otel_extra=(--values "$VALUES_DIR/otel-collector/values.yaml")
@@ -280,21 +315,16 @@ ov="$(overlay_values otel-collector)" && [[ -n "$ov" ]] && otel_extra+=($ov)
 if [[ -n "${OTEL_CLUSTER_OVERRIDE:-}" && -f "${OTEL_CLUSTER_OVERRIDE:-}" ]]; then
   otel_extra+=(--values "$OTEL_CLUSTER_OVERRIDE")
 fi
-helm upgrade --install netra-otel-collector open-telemetry/opentelemetry-collector \
-  --namespace "$NS" \
+helm_release netra-otel-collector open-telemetry/opentelemetry-collector \
   --version 0.158.0 \
-  "${otel_extra[@]}" \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  "${otel_extra[@]}"
 
 say "Installing blackbox_exporter (netra-blackbox)"
-helm upgrade --install netra-blackbox prometheus-community/prometheus-blackbox-exporter \
-  --namespace "$NS" \
+# shellcheck disable=SC2046
+helm_release netra-blackbox prometheus-community/prometheus-blackbox-exporter \
   --version 11.9.1 \
   --values "$VALUES_DIR/blackbox-exporter/values.yaml" \
-  $(overlay_values blackbox-exporter) \
-  --timeout "$HELM_TIMEOUT" \
-  --wait
+  $(overlay_values blackbox-exporter)
 
 # -------------------------------------------------------------------------
 # 4. Manifests: datasources, ServiceMonitors, Probes, PrometheusRules

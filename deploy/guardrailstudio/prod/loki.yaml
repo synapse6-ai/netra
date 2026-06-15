@@ -1,0 +1,18 @@
+# GuardrailStudio prod — Loki GCS + Workload Identity.
+
+loki:
+  storage:
+    bucketNames:
+      chunks: synapse6-prod-netra-loki
+      ruler: synapse6-prod-netra-loki
+      admin: synapse6-prod-netra-loki
+
+singleBinary:
+  persistence:
+    storageClass: premium-rwo
+    size: 50Gi
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-loki@synapse6-prod.iam.gserviceaccount.com

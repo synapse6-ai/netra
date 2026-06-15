@@ -24,8 +24,8 @@ credentials.json
 service-account*.json
 *-sa-key.json
 
-# Customer-specific deployment overlays (private; not for public OSS)
-deploy/
+# Customer-specific private overlays (Synapse6 central hub stays local-only)
+deploy/synapse6/
 
 # Ephemeral install / debug artifacts
 *.kubeconfig

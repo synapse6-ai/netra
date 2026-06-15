@@ -1,0 +1,119 @@
+---
+# Google OAuth gate for Grafana. Email allowlist in grafana-superadmin-emails.
+# Redirect URL per env: Secret grafana-oauth2-env key redirect-url.
+# Upstream: in-cluster Grafana Service from kube-prometheus-stack.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-oauth2-proxy
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana-oauth2-proxy
+    app.kubernetes.io/part-of: netra
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: grafana-oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+      targetPort: 4180
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-oauth2-proxy
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana-oauth2-proxy
+    app.kubernetes.io/part-of: netra
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana-oauth2-proxy
+        app.kubernetes.io/part-of: netra
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          args:
+            - --provider=google
+            - --email-domain=*
+            - --authenticated-emails-file=/etc/allowlist/emails.txt
+            - --upstream=http://netra-kps-grafana.observability.svc.cluster.local:80
+            - --http-address=0.0.0.0:4180
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --pass-access-token=false
+            - --pass-user-headers=true
+            - --skip-provider-button=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-google-oauth
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-google-oauth
+                  key: client-secret
+            - name: OAUTH2_PROXY_REDIRECT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-oauth2-env
+                  key: redirect-url
+          ports:
+            - name: http
+              containerPort: 4180
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: allowlist
+              mountPath: /etc/allowlist
+              readOnly: true
+      volumes:
+        - name: allowlist
+          secret:
+            secretName: grafana-superadmin-emails
+            items:
+              - key: emails.txt
+                path: emails.txt
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: grafana-oauth2-proxy
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-oauth2-proxy

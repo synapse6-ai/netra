@@ -1,0 +1,16 @@
+# GuardrailStudio stg — Tempo GCS + Workload Identity.
+
+tempo:
+  storage:
+    trace:
+      backend: gcs
+      gcs:
+        bucket_name: synapse6ai-stg-netra-tempo
+
+persistence:
+  storageClassName: standard
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: netra-tempo@synapse6ai-stg.iam.gserviceaccount.com
