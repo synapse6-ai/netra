@@ -218,6 +218,7 @@ if [[ -d "$GS" ]]; then
   for s in scripts/bootstrap-gcp.sh \
     scripts/ensure-observability-node-pool.sh \
     scripts/apply-grafana-edge.sh \
+    scripts/grant-grafana-edge-gsm-access.sh \
     scripts/install-env.sh; do
     if [[ -x "$GS/$s" ]]; then ok "$s (executable)"; else fail "$s (missing or not executable)"; fi
   done

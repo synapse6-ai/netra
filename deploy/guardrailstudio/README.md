@@ -96,7 +96,7 @@ Redirect URL is derived from the obs host (`obs-dev.instantevidence.ai`, etc.).
 the GSM secret (edge step reads GSM at apply time — nothing stored on the GHA runner).
 Mirror `superadmin_emails` to API `PLATFORM_ADMIN_EMAILS`.
 
-Generate `cookie_secret` once (32+ chars): `openssl rand -base64 32 | tr -d '\n' | head -c 32`
+Generate `cookie_secret` once: `openssl rand -hex 16`
 
 `install.sh` creates `netra-grafana-admin` for break-glass local admin.
 
@@ -158,18 +158,16 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
    (see error output from `ensure-observability-node-pool.sh` for exact `gcloud` command).
 4. **Deploy SA IAM** on `netra-grafana-edge-dev`:
    ```bash
-   gcloud secrets add-iam-policy-binding netra-grafana-edge-dev \
-     --project=synapse6ai-dev \
-     --member='serviceAccount:github-netra-deploy@synapse6ai-dev.iam.gserviceaccount.com' \
-     --role='roles/secretmanager.secretAccessor'
+   ./deploy/guardrailstudio/scripts/grant-grafana-edge-gsm-access.sh dev
    ```
-5. **DNS (GoDaddy)**: A record `obs-dev.instantevidence.ai` → ingress LB IP (printed in Phase 2).
+5. **DNS (GoDaddy)**: A record `obs-dev.instantevidence.ai` → ingress LB IP (printed in Phase 3).
 6. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
 
-The workflow runs **three explicit phases**:
+The workflow runs **four explicit phases** (after auth/bootstrap):
 1. Core stack (`install-env.sh` with `SKIP_GRAFANA_EDGE=true`)
-2. Grafana edge (`apply-grafana-edge.sh` — GSM fetch + oauth2-proxy + ingress)
-3. Edge verify (`verify.sh --edge`)
+2. GSM preflight (readable + valid JSON)
+3. Grafana edge (`apply-grafana-edge.sh`)
+4. Edge verify (`verify.sh --edge-only`)
 
 Use `skip_grafana_edge=true` if the GSM secret is not ready yet. Use `skip_observability_pool=true`
 when the pool was created via Terraform — still unlabels stray labels on app nodes.

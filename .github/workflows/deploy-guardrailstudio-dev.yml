@@ -5,8 +5,9 @@ name: Deploy GuardrailStudio Dev (Netra)
 # Job phases (explicit steps — not one opaque shell wrapper):
 #   1. Auth + GKE credentials
 #   2. Core stack (Helm + verify --deep)
-#   3. Grafana edge (GSM → secrets → oauth2-proxy → ingress)
-#   4. Edge verify (--edge)
+#   3. Preflight GSM secret shape + IAM
+#   4. Grafana edge (GSM → secrets → oauth2-proxy → ingress)
+#   5. Edge verify (--edge-only)
 #
 # Auth pattern (matches GuardrailStudio dev-release):
 #   1. REGISTRY_PASSWORD — bootstrap SA (secret-manager@…) from GitHub secret
@@ -113,12 +114,34 @@ jobs:
           SKIP_GRAFANA_EDGE: "true"
         run: ./deploy/guardrailstudio/scripts/install-env.sh dev
 
-      - name: "Phase 2 — Apply Grafana edge (oauth2-proxy + ingress)"
+      - name: "Phase 2 — Preflight Grafana edge GSM secret"
+        if: inputs.skip_grafana_edge != true
+        env:
+          NETRA_GRAFANA_EDGE_GSM: ${{ env.GRAFANA_EDGE_GSM }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          trap 'rm -f "$tmp"' EXIT
+          if ! gcloud secrets versions access latest \
+            --secret="${NETRA_GRAFANA_EDGE_GSM}" \
+            --project="${GCP_PROJECT}" >"$tmp" 2>/dev/null; then
+            echo "::error::Cannot read ${NETRA_GRAFANA_EDGE_GSM} — run grant-grafana-edge-gsm-access.sh dev"
+            exit 1
+          fi
+          # shellcheck source=deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
+          source deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
+          if ! validate_grafana_edge_json "$tmp"; then
+            echo "::error::Invalid ${NETRA_GRAFANA_EDGE_GSM} — need google_client_id, google_client_secret, cookie_secret (>=16), superadmin_emails"
+            exit 1
+          fi
+          echo "GSM preflight OK: ${NETRA_GRAFANA_EDGE_GSM}"
+
+      - name: "Phase 3 — Apply Grafana edge (oauth2-proxy + ingress)"
         if: inputs.skip_grafana_edge != true
         env:
           NETRA_GRAFANA_EDGE_GSM: ${{ env.GRAFANA_EDGE_GSM }}
         run: ./deploy/guardrailstudio/scripts/apply-grafana-edge.sh dev
 
-      - name: "Phase 3 — Verify Grafana edge"
+      - name: "Phase 4 — Verify Grafana edge"
         if: inputs.skip_grafana_edge != true
-        run: ./scripts/verify.sh --edge
+        run: ./scripts/verify.sh --edge-only

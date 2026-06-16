@@ -228,7 +228,8 @@ kubectl apply -f deploy/guardrailstudio/manifests/grafana-oauth2-proxy.yaml
 say "Applying Grafana ingress (${GRAFANA_HOST})"
 kubectl apply -f "${OVERLAY}/grafana-ingress.yaml"
 
-say "Waiting for oauth2-proxy rollout"
+say "Rolling oauth2-proxy (pick up secret changes)"
+kubectl rollout restart deployment/grafana-oauth2-proxy -n "$NS"
 kubectl rollout status deployment/grafana-oauth2-proxy -n "$NS" --timeout=5m
 
 ingress_ip="$(wait_ingress_ip)"

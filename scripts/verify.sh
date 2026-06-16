@@ -4,7 +4,7 @@
 # Usage:
 #   ./scripts/verify.sh           # existence + pod health
 #   ./scripts/verify.sh --deep    # also query Prometheus + resource budget
-#   ./scripts/verify.sh --edge    # oauth2-proxy, ingress, Grafana edge secrets
+#   ./scripts/verify.sh --edge-only  # edge checks only (CI Phase 3)
 #
 # Exits non-zero if any required object is missing or unhealthy.
 
@@ -13,14 +13,16 @@ set -uo pipefail
 NS=observability
 DEEP=0
 EDGE=0
+EDGE_ONLY=0
 EXIT=0
 
 for arg in "$@"; do
   case "$arg" in
     --deep) DEEP=1 ;;
     --edge) EDGE=1 ;;
+    --edge-only) EDGE=1; EDGE_ONLY=1 ;;
     -h|--help)
-      echo "Usage: $0 [--deep] [--edge]"
+      echo "Usage: $0 [--deep] [--edge] [--edge-only]"
       exit 0
       ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
@@ -33,6 +35,7 @@ warn() { printf '  \033[1;33m[warn]\033[0m %s\n' "$*"; }
 
 section() { printf '\n\033[1;36m== %s ==\033[0m\n' "$*"; }
 
+if [[ "$EDGE_ONLY" -eq 0 ]]; then
 # --- Pods ---------------------------------------------------------------
 section "Pods in $NS"
 non_ready=$(kubectl get pods -n "$NS" \
@@ -232,6 +235,8 @@ if [[ "$DEEP" -eq 1 ]]; then
   fi
 fi
 
+fi # EDGE_ONLY
+
 if [[ "$EDGE" -eq 1 ]]; then
   section "Grafana edge (oauth2-proxy + ingress)"
   for secret in grafana-google-oauth grafana-superadmin-emails grafana-oauth2-env; do
@@ -288,7 +293,7 @@ if [[ "$EDGE" -eq 1 ]]; then
       resolved="$(dig +short "$host" A 2>/dev/null | tail -1 || true)"
     fi
     if [[ -z "$resolved" ]]; then
-      warn "DNS: ${host} not resolving — add GoDaddy A record → ${ip}, then re-run Phase 2"
+      warn "DNS: ${host} not resolving — add GoDaddy A record → ${ip}, then re-run apply-grafana-edge.sh"
     elif [[ "$resolved" == "$ip" ]]; then
       ok "DNS ${host} → ${ip}"
     else
@@ -303,7 +308,7 @@ if [[ "$EDGE" -eq 1 ]]; then
       -n "$NS" --timeout=30s >/dev/null 2>&1; then
       ok "TLS certificate ${tls_name} Ready"
     else
-      warn "TLS certificate ${tls_name} not Ready — set DNS then re-run Phase 2"
+      warn "TLS certificate ${tls_name} not Ready — set DNS then re-run apply-grafana-edge.sh"
     fi
   else
     warn "cert-manager Certificate not found for ingress TLS yet"
