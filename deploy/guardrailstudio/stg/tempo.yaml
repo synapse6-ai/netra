@@ -8,7 +8,7 @@ tempo:
         bucket_name: synapse6ai-stg-netra-tempo
 
 persistence:
-  storageClassName: standard
+  storageClassName: standard-rwo
 
 serviceAccount:
   create: true

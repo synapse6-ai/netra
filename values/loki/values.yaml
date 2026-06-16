@@ -83,7 +83,7 @@ singleBinary:
       memory: 1280Mi
   persistence:
     enabled: true
-    storageClass: standard
+    storageClass: standard-rwo
     size: 20Gi                  # Local WAL/cache only; bulk data is in GCS.
   nodeSelector:
     workload: observability

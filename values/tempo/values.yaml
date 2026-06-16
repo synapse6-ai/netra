@@ -56,7 +56,7 @@ tempo:
 
 persistence:
   enabled: true
-  storageClassName: standard
+  storageClassName: standard-rwo
   size: 20Gi                    # WAL only; bulk data is in GCS.
 
 nodeSelector:

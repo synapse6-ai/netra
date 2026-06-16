@@ -9,7 +9,7 @@ loki:
 
 singleBinary:
   persistence:
-    storageClass: standard
+    storageClass: standard-rwo
 
 serviceAccount:
   create: true
