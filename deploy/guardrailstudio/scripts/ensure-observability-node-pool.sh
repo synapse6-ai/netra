@@ -125,7 +125,7 @@ create_pool_if_needed() {
 
 wait_observability_nodes() {
   echo "Waiting for observability node(s) to become Ready..."
-  kubectl wait --for=condition=Ready node -l workload=observability --timeout=600s
+  kubectl wait --for=condition=Ready node -l workload=observability,cloud.google.com/gke-nodepool="${POOL}" --timeout=600s
 }
 
 unlabel_app_nodes() {
@@ -163,6 +163,6 @@ verify_observability_scheduling() {
 configure_kubectl
 preflight_iam
 create_pool_if_needed
-wait_observability_nodes
 unlabel_app_nodes
+wait_observability_nodes
 verify_observability_scheduling

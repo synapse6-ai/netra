@@ -166,11 +166,15 @@ helm_release() {
   local release="$1"
   shift
   cleanup_stuck_helm_release "$release"
+  local wait_flag=(--wait)
+  if helm version --short 2>/dev/null | grep -q '^v4'; then
+    wait_flag=(--wait=watcher)
+  fi
   # shellcheck disable=SC2068
   helm upgrade --install "$release" "$@" \
     --namespace "$NS" \
     --timeout "$HELM_TIMEOUT" \
-    --wait=watcher
+    "${wait_flag[@]}"
 }
 
 helm_timeout_seconds() {
