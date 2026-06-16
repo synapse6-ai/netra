@@ -207,9 +207,15 @@ if edge_json="$(load_edge_json)"; then
 else
   say "Using existing Kubernetes Grafana edge secrets"
   verify_k8s_secrets_exist
+  cookie="$(kubectl get secret grafana-oauth2-env -n "$NS" \
+    -o jsonpath='{.data.cookie-secret}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+  if [[ -z "$cookie" ]]; then
+    die "grafana-oauth2-env missing cookie-secret — sync from GSM ${GSM_SECRET}"
+  fi
   kubectl create secret generic grafana-oauth2-env \
     --namespace="$NS" \
     --from-literal=redirect-url="$REDIRECT_URL" \
+    --from-literal=cookie-secret="$cookie" \
     --dry-run=client -o yaml | kubectl apply -f -
 fi
 

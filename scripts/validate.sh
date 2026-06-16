@@ -238,6 +238,13 @@ if [[ -d "$GS" ]]; then
   fi
   if [[ -x "$GS/scripts/lib/grafana-edge-json.sh" ]]; then
     ok "scripts/lib/grafana-edge-json.sh"
+    # shellcheck source=/dev/null
+    source "$GS/scripts/lib/grafana-edge-json.sh"
+    if validate_grafana_edge_json "$GS/examples/netra-grafana-edge-secret.example.json"; then
+      ok "examples/netra-grafana-edge-secret.example.json validates (replace placeholders before use)"
+    else
+      fail "examples/netra-grafana-edge-secret.example.json failed validate_grafana_edge_json"
+    fi
   else
     fail "missing scripts/lib/grafana-edge-json.sh"
   fi

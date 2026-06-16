@@ -27,6 +27,13 @@ spec:
     - from:
         - podSelector:
             matchLabels:
+              app.kubernetes.io/instance: netra-kps
+      ports:
+        - port: 3000
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
               app.kubernetes.io/instance: netra-blackbox
       ports:
         - port: 3000

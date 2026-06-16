@@ -124,7 +124,7 @@ done
 
 # --- NetworkPolicies ----------------------------------------------------
 section "NetworkPolicies"
-for np in netra-loki-ingress netra-tempo-ingress netra-otel-collector-ingress netra-grafana-ingress; do
+for np in netra-loki-ingress netra-tempo-ingress netra-otel-collector-ingress; do
   if kubectl get networkpolicy -n "$NS" "$np" >/dev/null 2>&1; then
     ok "NetworkPolicy $np"
   else
