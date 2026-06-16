@@ -149,15 +149,31 @@ ensure_observability_node() {
   [[ "${ready_nodes:-0}" -ge 1 ]]
 }
 
+delete_pending_helm_secrets() {
+  local release="$1"
+  local line name st
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="${line%%$'\t'*}"
+    st="${line#*$'\t'}"
+    [[ "$st" == pending-* ]] || continue
+    warn "deleting pending helm secret ${name} (status=${st})"
+    kubectl delete secret -n "$NS" "$name" --ignore-not-found
+  done < <(kubectl get secrets -n "$NS" -l "owner=helm,name=${release}" \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.labels.status}{"\n"}{end}' 2>/dev/null || true)
+}
+
 cleanup_stuck_helm_release() {
   local release="$1"
+  delete_pending_helm_secrets "$release"
   local status
-  status="$(helm list -n "$NS" -f "^${release}$" -o json 2>/dev/null \
+  status="$(helm list -n "$NS" -a -f "^${release}$" -o json 2>/dev/null \
     | jq -r '.[0].status // empty')"
   case "$status" in
     failed|pending-install|pending-upgrade|pending-rollback|uninstalling)
       warn "removing stuck Helm release ${release} (status=${status})"
-      helm uninstall "$release" -n "$NS" 2>/dev/null || true
+      helm uninstall "$release" -n "$NS" --wait=false 2>/dev/null || true
+      delete_pending_helm_secrets "$release"
       ;;
   esac
 }
@@ -167,11 +183,13 @@ helm_release() {
   shift
   cleanup_stuck_helm_release "$release"
   # ponytail: Helm --wait hangs silently over remote GKE; apply then poll kubectl.
+  local helm_args=(upgrade --install "$release" "$@" --namespace "$NS" --timeout "$HELM_TIMEOUT" --wait=false)
   # shellcheck disable=SC2068
-  helm upgrade --install "$release" "$@" \
-    --namespace "$NS" \
-    --timeout "$HELM_TIMEOUT" \
-    --wait=false
+  if ! helm "${helm_args[@]}"; then
+    warn "helm upgrade failed for ${release} — clearing pending ops and retrying once"
+    cleanup_stuck_helm_release "$release"
+    helm "${helm_args[@]}"
+  fi
   wait_release_pods "$release" 1
 }
 
