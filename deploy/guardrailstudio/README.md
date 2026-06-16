@@ -132,7 +132,9 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
    - `github-netra-deploy-json` — `github-netra-deploy@…` SA key (`container.admin` + `storage.admin`)
    - `synapse-secret-manager-json` — bootstrap reader (same as GuardrailStudio CI)
 2. **GitHub** (`synapse6-ai/netra`): secret `REGISTRY_PASSWORD` = bootstrap SA JSON.
-3. **Deploy SA** (`github-netra-deploy@…`): needs `roles/container.admin` (node pool create + Helm/GKE).
+3. **Deploy SA** (`github-netra-deploy@…`): `roles/container.admin` plus, for first node pool create,
+   `roles/iam.serviceAccountUser` on `{PROJECT_NUMBER}-compute@developer.gserviceaccount.com`
+   (see error output from `ensure-observability-node-pool.sh` for exact `gcloud` command).
 4. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
 
 The workflow runs `install-env.sh`, which ensures the observability node pool

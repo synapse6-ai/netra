@@ -112,7 +112,7 @@ create_pool_if_needed() {
       echo "    --role='roles/iam.serviceAccountUser'" >&2
       rm -f "$err"
       exit 1
-    fi
+    elif grep -qiE 'already exists|Already exists' "$err"; then
       echo "Observability node pool ${POOL} already exists (concurrent create)."
     else
       cat "$err" >&2
