@@ -15,7 +15,8 @@ deploy/guardrailstudio/
 ├── scripts/
 │   ├── bootstrap-gcp.sh          # GCS + GSAs + Workload Identity (per project)
 │   ├── ensure-observability-node-pool.sh  # dedicated tainted pool (dev/stg/prod)
-│   └── install-env.sh            # ensure pool + install.sh + verify --deep
+│   ├── apply-grafana-edge.sh     # GSM → secrets → oauth2-proxy → ingress
+│   └── install-env.sh            # ensure pool + install.sh + verify + edge
 ├── examples/                     # Secret templates — never commit real values
 ├── manifests/
 │   └── grafana-oauth2-proxy.yaml
@@ -48,12 +49,20 @@ PROJECT=synapse6ai-dev ./deploy/guardrailstudio/scripts/bootstrap-gcp.sh
 # 2. Dedicated observability node pool (label + taint; apps stay on app pool)
 ./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
 
-# 3. Core stack
+# 3. Core stack + Grafana edge (install-env runs both; edge needs GSM secret)
 HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh dev
+```
 
-# 4. Grafana edge (after creating secrets from examples/)
-kubectl apply -f deploy/guardrailstudio/manifests/grafana-oauth2-proxy.yaml
-kubectl apply -f deploy/guardrailstudio/dev/grafana-ingress.yaml
+Or core stack only:
+
+```bash
+SKIP_GRAFANA_EDGE=true HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh dev
+```
+
+Manual edge only (existing K8s secrets):
+
+```bash
+SKIP_GRAFANA_EDGE_SECRETS=true ./deploy/guardrailstudio/scripts/apply-grafana-edge.sh dev
 ```
 
 | Cluster | GCP project | `NETRA_VALUES_OVERLAY` | Grafana host |
@@ -70,13 +79,21 @@ kubectl apply -f deploy/guardrailstudio/dev/grafana-ingress.yaml
 | synapse6ai-stg | `synapse6ai-stg-netra-loki` | `synapse6ai-stg-netra-tempo` |
 | synapse6-prod | `synapse6-prod-netra-loki` | `synapse6-prod-netra-tempo` |
 
-## Secrets (create before Grafana ingress)
+## Secrets (Grafana edge)
 
-| Secret | Purpose |
-|--------|---------|
-| `grafana-google-oauth` | GCP OAuth `client-id`, `client-secret` |
-| `grafana-superadmin-emails` | `emails.txt` — one address per line (mirror `PLATFORM_ADMIN_EMAILS`) |
-| `grafana-oauth2-env` | `redirect-url` — e.g. `https://obs-dev.instantevidence.ai/oauth2/callback` |
+Create **Secret Manager** secret `netra-grafana-edge-{env}` before CI or `install-env.sh`
+(without `SKIP_GRAFANA_EDGE`). Template:
+`deploy/guardrailstudio/examples/netra-grafana-edge-secret.example.json`
+
+| GSM secret | GCP project | K8s secrets created |
+|------------|-------------|---------------------|
+| `netra-grafana-edge-dev` | synapse6ai-dev | `grafana-google-oauth`, `grafana-superadmin-emails`, `grafana-oauth2-env` |
+| `netra-grafana-edge-stg` | synapse6ai-stg | same |
+| `netra-grafana-edge-prod` | synapse6-prod | same |
+
+Redirect URL is derived from the obs host (`obs-dev.instantevidence.ai`, etc.).
+Bootstrap SA (GitHub `REGISTRY_PASSWORD`) needs `secretAccessor` on the GSM secret.
+Mirror `superadmin_emails` to API `PLATFORM_ADMIN_EMAILS`.
 
 `install.sh` creates `netra-grafana-admin` for break-glass local admin.
 
@@ -131,14 +148,16 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
 1. **Secret Manager** (`synapse6ai-dev`):
    - `github-netra-deploy-json` — `github-netra-deploy@…` SA key (`container.admin` + `storage.admin`)
    - `synapse-secret-manager-json` — bootstrap reader (same as GuardrailStudio CI)
+   - `netra-grafana-edge-dev` — Google OAuth + superadmin emails JSON (see `examples/`)
 2. **GitHub** (`synapse6-ai/netra`): secret `REGISTRY_PASSWORD` = bootstrap SA JSON.
 3. **Deploy SA** (`github-netra-deploy@…`): `roles/container.admin` plus, for first node pool create,
    `roles/iam.serviceAccountUser` on `{PROJECT_NUMBER}-compute@developer.gserviceaccount.com`
    (see error output from `ensure-observability-node-pool.sh` for exact `gcloud` command).
-4. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
+4. **DNS**: A record `obs-dev.instantevidence.ai` → ingress LB IP (printed at end of deploy).
+5. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
 
-The workflow runs `install-env.sh`, which ensures the observability node pool
-(create is idempotent; unlabel/wait always run). Use `skip_observability_pool=true`
+The workflow runs `install-env.sh` (core stack + Grafana edge). Use `skip_grafana_edge=true`
+if the GSM secret is not ready yet. Use `skip_observability_pool=true`
 when the pool was created via Terraform — still unlabels stray labels on app nodes.
 
 ### Migrating dev from single-node (shared app + observability)

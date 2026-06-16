@@ -4,6 +4,7 @@
 # Usage:
 #   ./scripts/verify.sh           # existence + pod health
 #   ./scripts/verify.sh --deep    # also query Prometheus + resource budget
+#   ./scripts/verify.sh --edge    # oauth2-proxy, ingress, Grafana edge secrets
 #
 # Exits non-zero if any required object is missing or unhealthy.
 
@@ -11,13 +12,15 @@ set -uo pipefail
 
 NS=observability
 DEEP=0
+EDGE=0
 EXIT=0
 
 for arg in "$@"; do
   case "$arg" in
     --deep) DEEP=1 ;;
+    --edge) EDGE=1 ;;
     -h|--help)
-      echo "Usage: $0 [--deep]"
+      echo "Usage: $0 [--deep] [--edge]"
       exit 0
       ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
@@ -226,6 +229,41 @@ if [[ "$DEEP" -eq 1 ]]; then
     fi
   else
     warn "no observability node found for memory budget check"
+  fi
+fi
+
+if [[ "$EDGE" -eq 1 ]]; then
+  section "Grafana edge (oauth2-proxy + ingress)"
+  for secret in grafana-google-oauth grafana-superadmin-emails grafana-oauth2-env; do
+    if kubectl get secret -n "$NS" "$secret" >/dev/null 2>&1; then
+      ok "secret $secret"
+    else
+      fail "missing secret: $secret"
+    fi
+  done
+
+  if kubectl get deployment -n "$NS" grafana-oauth2-proxy >/dev/null 2>&1; then
+    desired="$(kubectl get deployment -n "$NS" grafana-oauth2-proxy -o jsonpath='{.status.replicas}' 2>/dev/null || echo 0)"
+    ready="$(kubectl get deployment -n "$NS" grafana-oauth2-proxy -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)"
+    if [[ "${desired:-0}" -gt 0 && "${ready:-0}" == "${desired:-0}" ]]; then
+      ok "oauth2-proxy ${ready}/${desired} ready"
+    else
+      fail "oauth2-proxy ${ready:-0}/${desired:-0} ready"
+    fi
+  else
+    fail "missing deployment: grafana-oauth2-proxy"
+  fi
+
+  if kubectl get ingress -n "$NS" netra-grafana >/dev/null 2>&1; then
+    host="$(kubectl get ingress -n "$NS" netra-grafana -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
+    ip="$(kubectl get ingress -n "$NS" netra-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+    if [[ -n "$ip" ]]; then
+      ok "ingress ${host} → ${ip}"
+    else
+      fail "ingress ${host} has no loadBalancer IP yet"
+    fi
+  else
+    fail "missing ingress: netra-grafana"
   fi
 fi
 

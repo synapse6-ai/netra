@@ -1,6 +1,6 @@
 name: Deploy GuardrailStudio Dev (Netra)
 
-# Installs the Netra observability stack on guardrailstudio-dev.
+# Installs Netra observability stack + Grafana edge on guardrailstudio-dev.
 #
 # Auth pattern (matches GuardrailStudio dev-release):
 #   1. REGISTRY_PASSWORD — bootstrap SA (secret-manager@…) from GitHub secret
@@ -9,6 +9,7 @@ name: Deploy GuardrailStudio Dev (Netra)
 # GSM secrets (synapse6ai-dev):
 #   synapse-secret-manager-json  — bootstrap (also in GitHub REGISTRY_PASSWORD)
 #   github-netra-deploy-json     — Netra Helm/GKE deploy SA
+#   netra-grafana-edge-dev       — Grafana OAuth JSON (see deploy/guardrailstudio/examples/)
 
 on:
   workflow_dispatch:
@@ -19,6 +20,10 @@ on:
         default: true
       skip_observability_pool:
         description: Skip observability node pool create only (unlabel/wait still run)
+        type: boolean
+        default: false
+      skip_grafana_edge:
+        description: Skip oauth2-proxy + ingress (core stack only)
         type: boolean
         default: false
       helm_timeout:
@@ -34,6 +39,7 @@ env:
   GKE_CLUSTER: guardrailstudio-dev
   GKE_ZONE: us-central1-a
   DEPLOY_SA_SECRET: github-netra-deploy-json
+  GRAFANA_EDGE_GSM: netra-grafana-edge-dev
 
 jobs:
   deploy:
@@ -69,6 +75,14 @@ jobs:
           fi
           gcloud auth activate-service-account --key-file=sa-bootstrap.json
 
+      - name: Fetch Grafana edge config from Secret Manager
+        if: inputs.skip_grafana_edge != true
+        run: |
+          gcloud secrets versions access latest \
+            --secret="${GRAFANA_EDGE_GSM}" \
+            --project="${GCP_PROJECT}" > grafana-edge.json
+          jq -e '.google_client_id and .google_client_secret and .superadmin_emails' grafana-edge.json >/dev/null
+
       - name: Fetch Netra deploy SA from Secret Manager
         run: |
           gcloud secrets versions access latest \
@@ -88,14 +102,20 @@ jobs:
           version: v3.16.4
 
       - name: Install jq and envsubst
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base dnsutils
 
       - name: Bootstrap GCP (GCS + Workload Identity)
         if: inputs.skip_bootstrap != true
         run: PROJECT=synapse6ai-dev ./deploy/guardrailstudio/scripts/bootstrap-gcp.sh
 
-      - name: Install Netra core stack
+      - name: Install Netra core stack + Grafana edge
         env:
           HELM_TIMEOUT: ${{ inputs.helm_timeout }}
           SKIP_OBSERVABILITY_POOL_CREATE: ${{ inputs.skip_observability_pool && 'true' || 'false' }}
+          SKIP_GRAFANA_EDGE: ${{ inputs.skip_grafana_edge && 'true' || 'false' }}
+          GRAFANA_EDGE_JSON_FILE: ${{ github.workspace }}/grafana-edge.json
         run: ./deploy/guardrailstudio/scripts/install-env.sh dev
+
+      - name: Remove Grafana edge config from runner
+        if: always() && inputs.skip_grafana_edge != true
+        run: rm -f grafana-edge.json

@@ -43,7 +43,10 @@ NETRA_VALUES_OVERLAY="$OVERLAY" \
 
 ./scripts/verify.sh --deep
 
-echo ""
-echo "Core stack installed. Wire Grafana edge when OAuth secrets exist:"
-echo "  kubectl apply -f deploy/guardrailstudio/manifests/grafana-oauth2-proxy.yaml"
-echo "  kubectl apply -f deploy/guardrailstudio/${ENV}/grafana-ingress.yaml"
+if [[ "${SKIP_GRAFANA_EDGE:-false}" == "true" ]]; then
+  echo ""
+  echo "Skipped Grafana edge (SKIP_GRAFANA_EDGE=true)."
+else
+  ./deploy/guardrailstudio/scripts/apply-grafana-edge.sh "$ENV"
+  ./scripts/verify.sh --edge
+fi
