@@ -108,6 +108,13 @@ backend:
 gateway:
   enabled: false                # No public gateway; cluster-internal only.
 
+# Chart 17+ enables memcached caches by default (~8Gi+ each). Too heavy for a
+# single e2-standard-4 observability node alongside Prometheus/Grafana.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
 # We do not use the chart's bundled monitoring; metrics are scraped via the
 # ServiceMonitor created by the chart.
 monitoring:
