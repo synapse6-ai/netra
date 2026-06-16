@@ -1,10 +1,14 @@
 name: Deploy GuardrailStudio Dev (Netra)
 
 # Installs the Netra observability stack on guardrailstudio-dev.
-# Run from GitHub Actions (stable GKE API path) — not from a laptop terminal.
 #
-# Required secrets:
-#   GCP_SA_KEY — JSON key for a SA with container.admin + storage.admin on synapse6ai-dev
+# Auth pattern (matches GuardrailStudio dev-release):
+#   1. REGISTRY_PASSWORD — bootstrap SA (secret-manager@…) from GitHub secret
+#   2. github-netra-deploy-json — deploy SA from Secret Manager (container.admin)
+#
+# GSM secrets (synapse6ai-dev):
+#   synapse-secret-manager-json  — bootstrap (also in GitHub REGISTRY_PASSWORD)
+#   github-netra-deploy-json     — Netra Helm/GKE deploy SA
 
 on:
   workflow_dispatch:
@@ -21,6 +25,12 @@ on:
 permissions:
   contents: read
 
+env:
+  GCP_PROJECT: synapse6ai-dev
+  GKE_CLUSTER: guardrailstudio-dev
+  GKE_ZONE: us-central1-a
+  DEPLOY_SA_SECRET: github-netra-deploy-json
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -28,18 +38,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fail fast when GCP_SA_KEY is missing
+      - name: Fail fast when REGISTRY_PASSWORD is missing
         env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         run: |
-          if [ -z "${GCP_SA_KEY:-}" ]; then
-            echo "::error::Missing secret GCP_SA_KEY (JSON service account for synapse6ai-dev)."
+          if [ -z "${REGISTRY_PASSWORD:-}" ]; then
+            echo "::error::Missing REGISTRY_PASSWORD (bootstrap SA JSON — same as GuardrailStudio dev CI)."
             exit 1
           fi
 
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/setup-gcloud@v3
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          version: '556.0.0'
+          project_id: synapse6ai-dev
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Bootstrap GCP auth (Secret Manager reader)
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          echo "$REGISTRY_PASSWORD" > sa-bootstrap.raw
+          if [ "$(head -c1 sa-bootstrap.raw)" = "{" ]; then
+            mv sa-bootstrap.raw sa-bootstrap.json
+          else
+            base64 -d sa-bootstrap.raw > sa-bootstrap.json
+          fi
+          gcloud auth activate-service-account --key-file=sa-bootstrap.json
+
+      - name: Fetch Netra deploy SA from Secret Manager
+        run: |
+          gcloud secrets versions access latest \
+            --secret="${DEPLOY_SA_SECRET}" \
+            --project="${GCP_PROJECT}" > sa-deploy.json
+          gcloud auth activate-service-account --key-file=sa-deploy.json
+          rm -f sa-bootstrap.json sa-deploy.json
 
       - uses: google-github-actions/get-gke-credentials@v2
         with:

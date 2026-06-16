@@ -111,9 +111,11 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
 
 ### CI deploy (dev)
 
-1. Add repo secret `GCP_SA_KEY` (SA with `container.admin` + `storage.admin` on `synapse6ai-dev`).
-2. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
-3. After core stack is healthy, apply Grafana edge secrets + ingress manually.
+1. **Secret Manager** (`synapse6ai-dev`):
+   - `github-netra-deploy-json` — `github-netra-deploy@…` SA key (`container.admin` + `storage.admin`)
+   - `synapse-secret-manager-json` — bootstrap reader (same as GuardrailStudio CI)
+2. **GitHub** (`synapse6-ai/netra`): secret `REGISTRY_PASSWORD` = bootstrap SA JSON (copy from GuardrailStudio or refresh from GSM).
+3. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
 
 ## App integration
 
