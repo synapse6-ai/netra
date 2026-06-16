@@ -100,7 +100,19 @@ create_pool_if_needed() {
     --node-labels="workload=observability,env=${ENV}" \
     --node-taints="$TAINT" \
     --tags="guardrailstudio,${ENV},observability" 2>"$err"; then
-    if grep -qiE 'already exists|Already exists' "$err"; then
+    if grep -qiE 'serviceAccountUser|service account.*does not have access' "$err"; then
+      cat "$err" >&2
+      echo "" >&2
+      echo "Grant the deploy SA roles/iam.serviceAccountUser on the GKE default compute SA:" >&2
+      echo "  PROJECT_NUMBER=\$(gcloud projects describe ${PROJECT} --format='value(projectNumber)')" >&2
+      echo "  gcloud iam service-accounts add-iam-policy-binding \\" >&2
+      echo "    \${PROJECT_NUMBER}-compute@developer.gserviceaccount.com \\" >&2
+      echo "    --project=${PROJECT} \\" >&2
+      echo "    --member='serviceAccount:github-netra-deploy@${PROJECT}.iam.gserviceaccount.com' \\" >&2
+      echo "    --role='roles/iam.serviceAccountUser'" >&2
+      rm -f "$err"
+      exit 1
+    fi
       echo "Observability node pool ${POOL} already exists (concurrent create)."
     else
       cat "$err" >&2
