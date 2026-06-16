@@ -40,7 +40,7 @@ Run from **Cloud Shell** (or any host with `gcloud`, `kubectl`, `helm`, `jq`,
 gcloud config set project synapse6ai-dev
 gcloud container clusters get-credentials guardrailstudio-dev --zone=us-central1-a
 
-git clone https://github.com/kuldeep-key/netra.git && cd netra
+git clone https://github.com/synapse6-ai/netra.git && cd netra
 
 # 1. GCS + Workload Identity
 PROJECT=synapse6ai-dev ./deploy/guardrailstudio/scripts/bootstrap-gcp.sh
