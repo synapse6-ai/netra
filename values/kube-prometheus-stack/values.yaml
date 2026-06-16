@@ -219,12 +219,12 @@ grafana:
 
   # Netra symbol replaces the default Grafana login mark (ConfigMap from install.sh).
   extraConfigmapMounts:
-    - name: netra-grafana-branding
+    - name: netra-grafana-branding-icon
       mountPath: /usr/share/grafana/public/img/grafana_icon.svg
       subPath: grafana_icon.svg
       configMap: netra-grafana-branding
       readOnly: true
-    - name: netra-grafana-branding
+    - name: netra-grafana-branding-logo
       mountPath: /usr/share/grafana/public/img/grafana_typelogo.svg
       subPath: grafana_icon.svg
       configMap: netra-grafana-branding
