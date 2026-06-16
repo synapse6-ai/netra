@@ -179,8 +179,68 @@ helm_release() {
   helm upgrade --install "$release" "$@" \
     --namespace "$NS" \
     --timeout "$HELM_TIMEOUT" \
-    --wait=watcher \
-    --rollback-on-failure
+    --wait=watcher
+}
+
+helm_timeout_seconds() {
+  local t="${HELM_TIMEOUT:-30m}"
+  if [[ "$t" =~ ^([0-9]+)m$ ]]; then echo $(( "${BASH_REMATCH[1]}" * 60 ))
+  elif [[ "$t" =~ ^([0-9]+)s$ ]]; then echo "${BASH_REMATCH[1]}"
+  else echo 1800; fi
+}
+
+wait_kps_ready() {
+  say "Waiting for netra-kps pods (Helm applied chart; polling with progress)"
+  local max elapsed=0 step=15
+  max="$(helm_timeout_seconds)"
+  while (( elapsed < max )); do
+    local total running pending failed
+    total=$(kubectl get pods -n "$NS" -l app.kubernetes.io/instance=netra-kps --no-headers 2>/dev/null | wc -l | xargs)
+    running=$(kubectl get pods -n "$NS" -l app.kubernetes.io/instance=netra-kps --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | xargs)
+    pending=$(kubectl get pods -n "$NS" -l app.kubernetes.io/instance=netra-kps --field-selector=status.phase=Pending --no-headers 2>/dev/null | wc -l | xargs)
+    failed=$(kubectl get pods -n "$NS" -l app.kubernetes.io/instance=netra-kps --field-selector=status.phase=Failed --no-headers 2>/dev/null | wc -l | xargs)
+    echo "  ${elapsed}s — Running=${running:-0} Pending=${pending:-0} Failed=${failed:-0} (total pods=${total:-0})"
+
+    if [[ "${failed:-0}" -gt 0 ]]; then
+      kubectl get pods -n "$NS" -l app.kubernetes.io/instance=netra-kps --field-selector=status.phase=Failed 2>/dev/null || true
+      die "netra-kps has Failed pods — check events above"
+    fi
+
+    local job_failed
+    job_failed=$(kubectl get jobs -n "$NS" -l app.kubernetes.io/instance=netra-kps \
+      -o jsonpath='{range .items[*]}{.status.failed}{"\n"}{end}' 2>/dev/null | grep -c '[1-9]' || true)
+    if [[ "${job_failed:-0}" -gt 0 ]]; then
+      kubectl get jobs,pods -n "$NS" -l app.kubernetes.io/instance=netra-kps 2>/dev/null || true
+      die "netra-kps hook job failed — delete failed job and retry (see deploy/guardrailstudio/README.md)"
+    fi
+
+    if [[ "${running:-0}" -ge 3 ]] && kubectl get pods -n "$NS" \
+        -l app.kubernetes.io/name=grafana,app.kubernetes.io/instance=netra-kps \
+        --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q .; then
+      echo "  netra-kps core pods Running"
+      return 0
+    fi
+
+    sleep "$step"
+    elapsed=$((elapsed + step))
+  done
+  die "netra-kps not ready within ${HELM_TIMEOUT}"
+}
+
+helm_release_kps() {
+  cleanup_stuck_helm_release netra-kps
+  # ponytail: Helm 4 --wait hangs silently over remote GKE; apply then poll kubectl.
+  local helm_extra=()
+  if helm version --short 2>/dev/null | grep -q '^v4'; then
+    helm_extra+=(--server-side=false)
+  fi
+  # shellcheck disable=SC2068
+  helm upgrade --install netra-kps "$@" \
+    --namespace "$NS" \
+    --timeout "$HELM_TIMEOUT" \
+    --wait=false \
+    "${helm_extra[@]}"
+  wait_kps_ready
 }
 
 preflight() {
@@ -283,7 +343,7 @@ kubectl create configmap netra-grafana-branding \
 # -------------------------------------------------------------------------
 say "Installing kube-prometheus-stack (netra-kps)"
 # shellcheck disable=SC2046
-helm_release netra-kps prometheus-community/kube-prometheus-stack \
+helm_release_kps prometheus-community/kube-prometheus-stack \
   --version 86.1.0 \
   $(helm_values_kps)
 
