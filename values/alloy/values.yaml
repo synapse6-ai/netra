@@ -31,14 +31,16 @@ alloy:
     create: true
     # content: set by install.sh --set-file from values/alloy/config.alloy
 
-service:
-  enabled: true
-  type: ClusterIP
+  # Exposed on the Alloy Service (chart key is alloy.extraPorts, not service.extraPorts).
   extraPorts:
     - name: faro
       port: 12347
       targetPort: 12347
       protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
 
 serviceMonitor:
   enabled: true

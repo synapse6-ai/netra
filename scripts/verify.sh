@@ -34,7 +34,7 @@ section() { printf '\n\033[1;36m== %s ==\033[0m\n' "$*"; }
 section "Pods in $NS"
 non_ready=$(kubectl get pods -n "$NS" \
   --no-headers 2>/dev/null \
-  | awk '$3 != "Running" && $3 != "Completed" {print}')
+  | awk '$3 != "Running" && $3 != "Completed" && $3 != "Terminating" {print}')
 if [[ -z "$non_ready" ]]; then
   ok "all pods Running/Completed"
 else

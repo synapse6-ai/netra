@@ -93,6 +93,24 @@ tempo_values_file() {
   fi
 }
 
+loki_caches_disabled() {
+  local base="$VALUES_DIR/loki/values.yaml"
+  [[ -f "$base" ]] && grep -A1 '^chunksCache:' "$base" 2>/dev/null | grep -q 'enabled: false'
+}
+
+cleanup_orphan_loki_caches() {
+  loki_caches_disabled || return 0
+  say "Removing orphaned Loki memcached (caches disabled in values)"
+  kubectl delete statefulset,service,pod -n "$NS" \
+    netra-loki-chunks-cache netra-loki-results-cache \
+    --ignore-not-found=true 2>/dev/null || true
+  if grep -A1 'lokiCanary:' "$VALUES_DIR/loki/values.yaml" 2>/dev/null | grep -q 'enabled: false'; then
+    say "Removing orphaned Loki canary (disabled in values)"
+    kubectl delete daemonset,service,pod -n "$NS" netra-loki-canary \
+      --ignore-not-found=true 2>/dev/null || true
+  fi
+}
+
 write_alloy_config() {
   local cluster="$1"
   export NETRA_CLUSTER="$cluster"
@@ -227,6 +245,15 @@ wait_release_pods() {
     failed=$(kubectl get pods -n "$NS" -l "$selector" --field-selector=status.phase=Failed --no-headers 2>/dev/null | wc -l | xargs)
     ready=$(kubectl get pods -n "$NS" -l "$selector" -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' 2>/dev/null | grep -c '^True$' || true)
     echo "  ${elapsed}s — Ready=${ready:-0} Running=${running:-0} Pending=${pending:-0} Failed=${failed:-0} (total=${total:-0})"
+
+    local crashloop
+    crashloop=$(kubectl get pods -n "$NS" -l "$selector" \
+      -o jsonpath='{range .items[*]}{range .status.containerStatuses[*]}{.state.waiting.reason}{"\n"}{end}{end}' 2>/dev/null \
+      | grep -c CrashLoopBackOff || true)
+    if [[ "${crashloop:-0}" -gt 0 ]]; then
+      kubectl logs -n "$NS" -l "$selector" --tail=30 2>/dev/null || true
+      die "${release} CrashLoopBackOff — check logs above (often GCS IAM / WI)"
+    fi
 
     if [[ "${failed:-0}" -gt 0 ]]; then
       kubectl get pods -n "$NS" -l "$selector" -o wide 2>/dev/null || true
@@ -409,11 +436,13 @@ helm_release_kps prometheus-community/kube-prometheus-stack \
   $(helm_values_kps)
 
 say "Installing Loki (netra-loki)"
+cleanup_orphan_loki_caches
 # shellcheck disable=SC2046
 helm_release netra-loki grafana-community/loki \
   --version 17.1.5 \
   --values "$VALUES_DIR/loki/values.yaml" \
   $(overlay_values loki)
+cleanup_orphan_loki_caches
 
 say "Installing Alloy (netra-alloy)"
 # shellcheck disable=SC2046

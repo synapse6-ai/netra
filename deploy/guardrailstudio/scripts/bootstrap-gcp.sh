@@ -79,12 +79,12 @@ say "Service accounts"
 create_gsa "$LOKI_GSA"
 create_gsa "$TEMPO_GSA"
 
-say "Bucket IAM (objectAdmin)"
+say "Bucket IAM (objectAdmin + legacyBucketReader for bucket metadata)"
 gsutil iam ch \
-  "serviceAccount:${LOKI_GSA}@${PROJECT}.iam.gserviceaccount.com:objectAdmin" \
+  "serviceAccount:${LOKI_GSA}@${PROJECT}.iam.gserviceaccount.com:objectAdmin,legacyBucketReader" \
   "gs://${LOKI_BUCKET}"
 gsutil iam ch \
-  "serviceAccount:${TEMPO_GSA}@${PROJECT}.iam.gserviceaccount.com:objectAdmin" \
+  "serviceAccount:${TEMPO_GSA}@${PROJECT}.iam.gserviceaccount.com:objectAdmin,legacyBucketReader" \
   "gs://${TEMPO_BUCKET}"
 
 say "Workload Identity bindings (namespace ${NS})"
