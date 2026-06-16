@@ -4,7 +4,7 @@
 
 **Vision for your infrastructure — clarity across Kubernetes chaos.**
 
-[![Open Source](https://img.shields.io/badge/Open%20Source-OSS-0057FF?style=flat-square&labelColor=0B0D12)](https://github.com/kuldeep-key/netra)
+[![Open Source](https://img.shields.io/badge/Open%20Source-OSS-0057FF?style=flat-square&labelColor=0B0D12)](https://github.com/synapse6-ai/netra)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-GKE%20%7C%20any%20serious%20K8s-F7F8FC?style=flat-square&labelColor=0B0D12&color=0057FF)](docs/production-checklist.md)
 [![Signals](https://img.shields.io/badge/Signals-Metrics%20%7C%20Logs%20%7C%20Traces-2DBA4E?style=flat-square&labelColor=0B0D12)](docs/architecture.md)
 [![GitOps](https://img.shields.io/badge/Dashboards%20%26%20Alerts-Git--owned-F7F8FC?style=flat-square&labelColor=0B0D12&color=0057FF)](docs/dashboards-alerts-in-git.md)
@@ -135,7 +135,7 @@ Architecture: [docs/architecture.md](docs/architecture.md)
 Complete [production-checklist.md](docs/production-checklist.md) before install: GCS buckets, Workload Identity on Loki/Tempo, node pool ready. `install.sh` preflights both (`SKIP_GCS_PREFLIGHT=1` for non-GCS smoke tests only).
 
 ```sh
-git clone https://github.com/kuldeep-key/netra.git
+git clone https://github.com/synapse6-ai/netra.git
 cd netra
 # optional: NETRA_CLUSTER=my-gke-cluster ./scripts/install.sh
 ./scripts/install.sh
