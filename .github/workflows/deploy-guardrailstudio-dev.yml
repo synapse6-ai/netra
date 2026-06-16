@@ -73,11 +73,11 @@ jobs:
           gcloud auth activate-service-account --key-file=sa-deploy.json
           rm -f sa-bootstrap.json sa-deploy.json
 
-      - uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: guardrailstudio-dev
-          location: us-central1-a
-          project_id: synapse6ai-dev
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials "${GKE_CLUSTER}" \
+            --zone="${GKE_ZONE}" \
+            --project="${GCP_PROJECT}"
 
       - uses: azure/setup-helm@v4
         with:
