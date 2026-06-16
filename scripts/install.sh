@@ -166,15 +166,25 @@ helm_release() {
   local release="$1"
   shift
   cleanup_stuck_helm_release "$release"
-  local wait_flag=(--wait)
-  if helm version --short 2>/dev/null | grep -q '^v4'; then
-    wait_flag=(--wait=watcher)
-  fi
+  # ponytail: Helm --wait hangs silently over remote GKE; apply then poll kubectl.
   # shellcheck disable=SC2068
   helm upgrade --install "$release" "$@" \
     --namespace "$NS" \
     --timeout "$HELM_TIMEOUT" \
-    "${wait_flag[@]}"
+    --wait=false
+  wait_release_pods "$release" 1
+}
+
+helm_release_daemonset() {
+  local release="$1"
+  shift
+  cleanup_stuck_helm_release "$release"
+  # shellcheck disable=SC2068
+  helm upgrade --install "$release" "$@" \
+    --namespace "$NS" \
+    --timeout "$HELM_TIMEOUT" \
+    --wait=false
+  wait_daemonset "$release"
 }
 
 helm_timeout_seconds() {
@@ -182,6 +192,45 @@ helm_timeout_seconds() {
   if [[ "$t" =~ ^([0-9]+)m$ ]]; then echo $(( "${BASH_REMATCH[1]}" * 60 ))
   elif [[ "$t" =~ ^([0-9]+)s$ ]]; then echo "${BASH_REMATCH[1]}"
   else echo 1800; fi
+}
+
+wait_release_pods() {
+  local release="$1"
+  local min_ready="${2:-1}"
+  local selector="app.kubernetes.io/instance=${release}"
+  say "Waiting for ${release} pods (polling)"
+  local max elapsed=0 step=15
+  max="$(helm_timeout_seconds)"
+  while (( elapsed < max )); do
+    local total running pending failed ready
+    total=$(kubectl get pods -n "$NS" -l "$selector" --no-headers 2>/dev/null | wc -l | xargs)
+    running=$(kubectl get pods -n "$NS" -l "$selector" --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | xargs)
+    pending=$(kubectl get pods -n "$NS" -l "$selector" --field-selector=status.phase=Pending --no-headers 2>/dev/null | wc -l | xargs)
+    failed=$(kubectl get pods -n "$NS" -l "$selector" --field-selector=status.phase=Failed --no-headers 2>/dev/null | wc -l | xargs)
+    ready=$(kubectl get pods -n "$NS" -l "$selector" -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' 2>/dev/null | grep -c '^True$' || true)
+    echo "  ${elapsed}s — Ready=${ready:-0} Running=${running:-0} Pending=${pending:-0} Failed=${failed:-0} (total=${total:-0})"
+
+    if [[ "${failed:-0}" -gt 0 ]]; then
+      kubectl get pods -n "$NS" -l "$selector" -o wide 2>/dev/null || true
+      die "${release} has Failed pods — check events: kubectl describe pod -n ${NS} -l ${selector}"
+    fi
+
+    if [[ "${ready:-0}" -ge "${min_ready}" && "${total:-0}" -ge "${min_ready}" ]]; then
+      echo "  ${release} ready"
+      return 0
+    fi
+
+    sleep "$step"
+    elapsed=$((elapsed + step))
+  done
+  kubectl get pods -n "$NS" -l "$selector" -o wide 2>/dev/null || true
+  die "${release} not ready within ${HELM_TIMEOUT}"
+}
+
+wait_daemonset() {
+  local name="$1"
+  say "Waiting for daemonset/${name}"
+  kubectl rollout status "daemonset/${name}" -n "$NS" --timeout="${HELM_TIMEOUT}"
 }
 
 wait_kps_ready() {
@@ -350,7 +399,7 @@ helm_release netra-loki grafana-community/loki \
 
 say "Installing Alloy (netra-alloy)"
 # shellcheck disable=SC2046
-helm_release netra-alloy grafana/alloy \
+helm_release_daemonset netra-alloy grafana/alloy \
   --version 1.8.2 \
   --values "$VALUES_DIR/alloy/values.yaml" \
   $(overlay_values alloy) \
