@@ -98,7 +98,7 @@ target. Stack self-checks use `layer: platform` with no environment.
 ## Node isolation, not HA
 
 Observability workloads run on a dedicated `workload=observability` node
-pool. **Default GKE machine type: `e2-standard-2`** (2 vCPU, 8 GiB RAM,
+pool. **Default GKE machine type: `e2-standard-4`** (4 vCPU, 16 GiB RAM,
 one node). Helm `resources` in `values/` are request/limit-tuned for that
 footprint; memory **limits** sum to ~6.3 GiB so an 8 GiB node is not
 overcommitted. Use `e2-standard-4` or additional nodes if Prometheus

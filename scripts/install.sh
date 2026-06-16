@@ -146,16 +146,7 @@ ensure_observability_node() {
   local ready_nodes
   ready_nodes=$(kubectl get nodes -l workload=observability --no-headers 2>/dev/null \
     | awk '$2 == "Ready" { c++ } END { print c + 0 }')
-  [[ "${ready_nodes:-0}" -ge 1 ]] && return 0
-
-  # ponytail: couples generic install.sh to guardrailstudio bundle; hub installs skip via NETRA_SKIP_AUTO_LABEL=1
-  local label_script="$REPO_ROOT/deploy/guardrailstudio/scripts/label-observability-node.sh"
-  if [[ "${NETRA_SKIP_AUTO_LABEL:-0}" == "1" ]] || [[ ! -x "$label_script" ]]; then
-    return 1
-  fi
-
-  warn "no Ready node with workload=observability (GKE node replacement?) — auto-labeling"
-  "$label_script"
+  [[ "${ready_nodes:-0}" -ge 1 ]]
 }
 
 cleanup_stuck_helm_release() {
@@ -249,13 +240,12 @@ preflight() {
   if ! ensure_observability_node; then
     die "no Ready node with label workload=observability.
 
-  Label a node (single-node dev: label only, no taint):
-    ./deploy/guardrailstudio/scripts/label-observability-node.sh
+  Create the dedicated observability node pool first:
+    ./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev|stg|prod
 
-  Multi-node pools also need:
-    kubectl taint node <NODE> workload=observability:NoSchedule --overwrite
+  Or via GuardrailStudio Terraform (infra/terraform/gke.tf observability_nodes pool).
 
-  See manifests/node-scheduling.yaml"
+  See deploy/guardrailstudio/README.md and manifests/node-scheduling.yaml"
   fi
 
   local ready_nodes

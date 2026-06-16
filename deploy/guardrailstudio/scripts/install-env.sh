@@ -6,7 +6,8 @@
 #   HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh stg
 #
 # Run from GKE Cloud Shell or GitHub Actions — not a laptop IDE terminal.
-# bootstrap-gcp.sh is one-time per GCP project; install.sh auto-labels observability nodes.
+# bootstrap-gcp.sh is one-time per GCP project.
+# ensure-observability-node-pool.sh: pool create (skippable) + unlabel/wait (always).
 
 set -euo pipefail
 
@@ -32,6 +33,9 @@ esac
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
+
+export SKIP_OBSERVABILITY_POOL_CREATE="${SKIP_OBSERVABILITY_POOL_CREATE:-${SKIP_OBSERVABILITY_POOL:-false}}"
+./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh "$ENV"
 
 NETRA_CLUSTER="$NETRA_CLUSTER" \
 NETRA_VALUES_OVERLAY="$OVERLAY" \

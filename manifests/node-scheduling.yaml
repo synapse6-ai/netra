@@ -18,18 +18,18 @@
 #   - Alloy        (DaemonSet, tolerations: Exists)
 #   - node-exporter (DaemonSet, tolerations: Exists)
 #
-# Operator commands to prepare a node:
+# Operator commands (legacy single-node only — prefer ensure-observability-node-pool.sh):
 #   kubectl label  node <NODE> workload=observability --overwrite
 #   kubectl taint  node <NODE> workload=observability:NoSchedule --overwrite
+#
+# GuardrailStudio: ./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
 #
 # Dedicated observability nodes provide isolation, not HA. Real HA needs
 # >= 3 observability nodes plus replicated/stateless components — out of
 # scope for this scaffold.
 #
-# Recommended GKE machine type (single-node pool): e2-standard-2
-#   (2 vCPU, 8 GiB RAM). Helm values are sized to schedule on that node;
-#   memory *limits* sum to ~6.3 GiB so the node is not overcommitted.
-#   For heavy cardinality or large clusters, use e2-standard-4+.
+# Recommended GKE machine type: e2-standard-4 (4 vCPU, 16 GiB RAM).
+# Helm memory *limits* sum to ~6.3 GiB; e2-standard-4 leaves headroom.
 #
 # This ConfigMap is informational. Helm values files own the actual
 # nodeSelector / tolerations used by the workloads.
@@ -54,5 +54,5 @@ data:
     See manifests/node-scheduling.yaml header for the full convention.
     Edit Helm values files, not this ConfigMap, to change scheduling.
 
-    Default node pool: one e2-standard-2 (2 vCPU, 8 GiB) with label
-    workload=observability and taint workload=observability:NoSchedule.
+    Default node pool: e2-standard-4 with label workload=observability and
+    taint workload=observability:NoSchedule (see ensure-observability-node-pool.sh).

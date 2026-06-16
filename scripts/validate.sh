@@ -215,8 +215,9 @@ if [[ -d "$GS" ]]; then
       fail "$env/tempo.yaml missing WI annotation"
     fi
   done
-  for s in scripts/bootstrap-gcp.sh scripts/label-observability-node.sh \
-    scripts/install-env.sh; do
+  for s in deploy/guardrailstudio/scripts/bootstrap-gcp.sh \
+    deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh \
+    deploy/guardrailstudio/scripts/install-env.sh; do
     if [[ -x "$GS/$s" ]]; then ok "$s (executable)"; else fail "$s (missing or not executable)"; fi
   done
   if [[ -s "$REPO_ROOT/.github/workflows/deploy-guardrailstudio-dev.yml" ]]; then

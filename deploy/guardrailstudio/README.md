@@ -14,8 +14,8 @@ deploy/guardrailstudio/
 ├── README.md
 ├── scripts/
 │   ├── bootstrap-gcp.sh          # GCS + GSAs + Workload Identity (per project)
-│   ├── label-observability-node.sh
-│   └── install-env.sh            # dev|stg|prod → install.sh + verify --deep
+│   ├── ensure-observability-node-pool.sh  # dedicated tainted pool (dev/stg/prod)
+│   └── install-env.sh            # ensure pool + install.sh + verify --deep
 ├── examples/                     # Secret templates — never commit real values
 ├── manifests/
 │   └── grafana-oauth2-proxy.yaml
@@ -45,8 +45,8 @@ git clone https://github.com/synapse6-ai/netra.git && cd netra
 # 1. GCS + Workload Identity
 PROJECT=synapse6ai-dev ./deploy/guardrailstudio/scripts/bootstrap-gcp.sh
 
-# 2. Observability node label (single-node dev: no taint)
-./deploy/guardrailstudio/scripts/label-observability-node.sh
+# 2. Dedicated observability node pool (label + taint; apps stay on app pool)
+./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
 
 # 3. Core stack
 HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh dev
@@ -91,20 +91,37 @@ Browser → Ingress (obs-*) → oauth2-proxy → Grafana (auth.proxy / X-Forward
 ### Helm `pending-install` / `failed` with no pods
 
 Usually an interrupted install (laptop terminal closed, `context canceled`, flaky
-API watch). `install.sh` now auto-removes stuck releases before retry and
-auto-labels the observability node after GKE node replacement.
+API watch). `install.sh` auto-removes stuck releases before retry.
 
 ```bash
 helm list -n observability
 helm history netra-kps -n observability
 kubectl get pods,pvc,events -n observability
-kubectl get nodes -l workload=observability
+kubectl get nodes -L workload,cloud.google.com/gke-nodepool
 
 # Manual recovery (if needed):
 helm uninstall netra-kps -n observability
-./deploy/guardrailstudio/scripts/label-observability-node.sh
+./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
 HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh dev
 ```
+
+### PVC attach errors on c3 nodes
+
+If events show `pd-standard disk type cannot be used by c3-standard-4`, PVCs
+were provisioned with legacy `standard` instead of `standard-rwo`. Delete the
+stuck release + PVCs and reinstall (values now use `standard-rwo`).
+
+### Observability node pool
+
+Each cluster needs a **dedicated** node pool (label `workload=observability`,
+taint `workload=observability:NoSchedule`). App pods (`key-stack-*`) stay on the
+primary pool. Run once per cluster (idempotent):
+
+```bash
+./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
+```
+
+Or apply via Terraform: `infra/terraform/gke.tf` (`observability_nodes` pool).
 
 **Do not** run long installs from a laptop IDE terminal. Use **GKE Cloud Shell**
 or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml`.
@@ -114,8 +131,38 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
 1. **Secret Manager** (`synapse6ai-dev`):
    - `github-netra-deploy-json` — `github-netra-deploy@…` SA key (`container.admin` + `storage.admin`)
    - `synapse-secret-manager-json` — bootstrap reader (same as GuardrailStudio CI)
-2. **GitHub** (`synapse6-ai/netra`): secret `REGISTRY_PASSWORD` = bootstrap SA JSON (copy from GuardrailStudio or refresh from GSM).
-3. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
+2. **GitHub** (`synapse6-ai/netra`): secret `REGISTRY_PASSWORD` = bootstrap SA JSON.
+3. **Deploy SA** (`github-netra-deploy@…`): needs `roles/container.admin` (node pool create + Helm/GKE).
+4. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
+
+The workflow runs `install-env.sh`, which ensures the observability node pool
+(create is idempotent; unlabel/wait always run). Use `skip_observability_pool=true`
+when the pool was created via Terraform — still unlabels stray labels on app nodes.
+
+### Migrating dev from single-node (shared app + observability)
+
+If the app node still has `workload=observability` or PVCs used legacy `standard`:
+
+```bash
+# 1. Pool + unlabel (install-env runs this; or run alone)
+./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
+
+# 2. Drop stuck pd-standard PVCs / failed Helm release
+helm uninstall netra-kps -n observability 2>/dev/null || true
+kubectl delete pvc -n observability --all 2>/dev/null || true
+
+# 3. Reinstall
+HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh dev
+
+# 4. Verify isolation
+kubectl get nodes -L workload,cloud.google.com/gke-nodepool
+kubectl get pods -n observability -o wide
+kubectl get pods -n synapse6ai-dev -o wide
+```
+
+**Infra owners:** app pool via GuardrailStudio Terraform (`primary_nodes`); observability
+pool via Terraform `observability_nodes` or Netra `ensure-observability-node-pool.sh`.
+If Terraform created the pool, Netra deploys with `SKIP_OBSERVABILITY_POOL_CREATE=true`.
 
 ## App integration
 

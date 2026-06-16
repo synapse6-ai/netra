@@ -107,8 +107,8 @@ say "Done."
 cat <<EOF
 
 Next steps:
-  1. Label an observability node (single-node dev: label only, no taint):
-       ./deploy/guardrailstudio/scripts/label-observability-node.sh
+  1. Dedicated observability node pool (label + taint):
+       ./deploy/guardrailstudio/scripts/ensure-observability-node-pool.sh dev
 
   2. Create Grafana edge secrets (see deploy/guardrailstudio/examples/).
 
