@@ -99,8 +99,7 @@ create_pool_if_needed() {
     --num-nodes="$NUM_NODES" \
     --node-labels="workload=observability,env=${ENV}" \
     --node-taints="$TAINT" \
-    --tags="guardrailstudio,${ENV},observability" \
-    --enable-autoscaling=false 2>"$err"; then
+    --tags="guardrailstudio,${ENV},observability" 2>"$err"; then
     if grep -qiE 'already exists|Already exists' "$err"; then
       echo "Observability node pool ${POOL} already exists (concurrent create)."
     else
