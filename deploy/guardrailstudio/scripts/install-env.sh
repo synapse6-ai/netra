@@ -5,6 +5,10 @@
 #   ./deploy/guardrailstudio/scripts/install-env.sh dev
 #   HELM_TIMEOUT=45m ./deploy/guardrailstudio/scripts/install-env.sh stg
 #
+# CI (deploy-guardrailstudio-dev.yml) runs core and Grafana edge as separate
+# workflow steps. Local / Cloud Shell: one command runs both unless
+# SKIP_GRAFANA_EDGE=true.
+#
 # Run from GKE Cloud Shell or GitHub Actions — not a laptop IDE terminal.
 # bootstrap-gcp.sh is one-time per GCP project.
 # ensure-observability-node-pool.sh: pool create (skippable) + unlabel/wait (always).

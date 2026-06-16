@@ -92,8 +92,11 @@ Create **Secret Manager** secret `netra-grafana-edge-{env}` before CI or `instal
 | `netra-grafana-edge-prod` | synapse6-prod | same |
 
 Redirect URL is derived from the obs host (`obs-dev.instantevidence.ai`, etc.).
-Bootstrap SA (GitHub `REGISTRY_PASSWORD`) needs `secretAccessor` on the GSM secret.
+**Deploy SA** (`github-netra-deploy@…`) needs `roles/secretmanager.secretAccessor` on
+the GSM secret (edge step reads GSM at apply time — nothing stored on the GHA runner).
 Mirror `superadmin_emails` to API `PLATFORM_ADMIN_EMAILS`.
+
+Generate `cookie_secret` once (32+ chars): `openssl rand -base64 32 | tr -d '\n' | head -c 32`
 
 `install.sh` creates `netra-grafana-admin` for break-glass local admin.
 
@@ -153,12 +156,29 @@ or the GitHub Actions workflow `.github/workflows/deploy-guardrailstudio-dev.yml
 3. **Deploy SA** (`github-netra-deploy@…`): `roles/container.admin` plus, for first node pool create,
    `roles/iam.serviceAccountUser` on `{PROJECT_NUMBER}-compute@developer.gserviceaccount.com`
    (see error output from `ensure-observability-node-pool.sh` for exact `gcloud` command).
-4. **DNS**: A record `obs-dev.instantevidence.ai` → ingress LB IP (printed at end of deploy).
-5. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
+4. **Deploy SA IAM** on `netra-grafana-edge-dev`:
+   ```bash
+   gcloud secrets add-iam-policy-binding netra-grafana-edge-dev \
+     --project=synapse6ai-dev \
+     --member='serviceAccount:github-netra-deploy@synapse6ai-dev.iam.gserviceaccount.com' \
+     --role='roles/secretmanager.secretAccessor'
+   ```
+5. **DNS (GoDaddy)**: A record `obs-dev.instantevidence.ai` → ingress LB IP (printed in Phase 2).
+6. Actions → **Deploy GuardrailStudio Dev (Netra)** → Run workflow.
 
-The workflow runs `install-env.sh` (core stack + Grafana edge). Use `skip_grafana_edge=true`
-if the GSM secret is not ready yet. Use `skip_observability_pool=true`
+The workflow runs **three explicit phases**:
+1. Core stack (`install-env.sh` with `SKIP_GRAFANA_EDGE=true`)
+2. Grafana edge (`apply-grafana-edge.sh` — GSM fetch + oauth2-proxy + ingress)
+3. Edge verify (`verify.sh --edge`)
+
+Use `skip_grafana_edge=true` if the GSM secret is not ready yet. Use `skip_observability_pool=true`
 when the pool was created via Terraform — still unlabels stray labels on app nodes.
+
+### Grafana edge DNS / TLS (two-phase)
+
+First deploy: Phase 2 prints ingress IP → add GoDaddy A record → re-run workflow
+(or `./deploy/guardrailstudio/scripts/apply-grafana-edge.sh dev`) until
+`verify.sh --edge` reports TLS Ready.
 
 ### Migrating dev from single-node (shared app + observability)
 

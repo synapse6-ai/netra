@@ -124,7 +124,7 @@ done
 
 # --- NetworkPolicies ----------------------------------------------------
 section "NetworkPolicies"
-for np in netra-loki-ingress netra-tempo-ingress netra-otel-collector-ingress; do
+for np in netra-loki-ingress netra-tempo-ingress netra-otel-collector-ingress netra-grafana-ingress; do
   if kubectl get networkpolicy -n "$NS" "$np" >/dev/null 2>&1; then
     ok "NetworkPolicy $np"
   else
@@ -254,6 +254,8 @@ if [[ "$EDGE" -eq 1 ]]; then
     fail "missing deployment: grafana-oauth2-proxy"
   fi
 
+  host=""
+  ip=""
   if kubectl get ingress -n "$NS" netra-grafana >/dev/null 2>&1; then
     host="$(kubectl get ingress -n "$NS" netra-grafana -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
     ip="$(kubectl get ingress -n "$NS" netra-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
@@ -264,6 +266,47 @@ if [[ "$EDGE" -eq 1 ]]; then
     fi
   else
     fail "missing ingress: netra-grafana"
+  fi
+
+  if kubectl get networkpolicy -n "$NS" netra-grafana-ingress >/dev/null 2>&1; then
+    ok "NetworkPolicy netra-grafana-ingress"
+  else
+    fail "missing NetworkPolicy netra-grafana-ingress"
+  fi
+
+  cookie_len=$(kubectl get secret grafana-oauth2-env -n "$NS" \
+    -o jsonpath='{.data.cookie-secret}' 2>/dev/null | base64 -d 2>/dev/null | wc -c | tr -d ' ')
+  if [[ "${cookie_len:-0}" -ge 16 ]]; then
+    ok "oauth2-proxy cookie-secret configured"
+  else
+    fail "grafana-oauth2-env missing cookie-secret (>=16 chars)"
+  fi
+
+  if [[ -n "${ip:-}" ]]; then
+    resolved=""
+    if command -v dig >/dev/null 2>&1; then
+      resolved="$(dig +short "$host" A 2>/dev/null | tail -1 || true)"
+    fi
+    if [[ -z "$resolved" ]]; then
+      warn "DNS: ${host} not resolving — add GoDaddy A record → ${ip}, then re-run Phase 2"
+    elif [[ "$resolved" == "$ip" ]]; then
+      ok "DNS ${host} → ${ip}"
+    else
+      warn "DNS mismatch: ${host} → ${resolved}, ingress IP ${ip}"
+    fi
+  fi
+
+  tls_name=$(kubectl get ingress netra-grafana -n "$NS" \
+    -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null || true)
+  if [[ -n "$tls_name" ]] && kubectl get certificate "$tls_name" -n "$NS" >/dev/null 2>&1; then
+    if kubectl wait --for=condition=Ready "certificate/${tls_name}" \
+      -n "$NS" --timeout=30s >/dev/null 2>&1; then
+      ok "TLS certificate ${tls_name} Ready"
+    else
+      warn "TLS certificate ${tls_name} not Ready — set DNS then re-run Phase 2"
+    fi
+  else
+    warn "cert-manager Certificate not found for ingress TLS yet"
   fi
 fi
 

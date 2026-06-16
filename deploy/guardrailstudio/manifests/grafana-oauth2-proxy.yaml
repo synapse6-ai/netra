@@ -54,6 +54,7 @@ spec:
             - --pass-access-token=false
             - --pass-user-headers=true
             - --skip-provider-button=true
+            - --reverse-proxy=true
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               valueFrom:
@@ -70,6 +71,11 @@ spec:
                 secretKeyRef:
                   name: grafana-oauth2-env
                   key: redirect-url
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-oauth2-env
+                  key: cookie-secret
           ports:
             - name: http
               containerPort: 4180

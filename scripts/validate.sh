@@ -231,6 +231,16 @@ if [[ -d "$GS" ]]; then
   else
     fail "missing manifests/grafana-oauth2-proxy.yaml"
   fi
+  if [[ -s "$GS/manifests/grafana-networkpolicy.yaml" ]]; then
+    ok "manifests/grafana-networkpolicy.yaml"
+  else
+    fail "missing manifests/grafana-networkpolicy.yaml"
+  fi
+  if [[ -x "$GS/scripts/lib/grafana-edge-json.sh" ]]; then
+    ok "scripts/lib/grafana-edge-json.sh"
+  else
+    fail "missing scripts/lib/grafana-edge-json.sh"
+  fi
 else
   fail "missing deploy/guardrailstudio/"
 fi

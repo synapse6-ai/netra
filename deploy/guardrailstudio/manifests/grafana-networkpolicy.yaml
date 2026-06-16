@@ -1,0 +1,33 @@
+---
+# Grafana accepts HTTP only from oauth2-proxy (public path) and blackbox health
+# probes. Blocks in-cluster auth.proxy header spoofing from arbitrary pods.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netra-grafana-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: netra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: netra-kps
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana-oauth2-proxy
+      ports:
+        - port: 3000
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: netra-blackbox
+      ports:
+        - port: 3000
+          protocol: TCP
