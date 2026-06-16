@@ -4,7 +4,7 @@
 # Usage:
 #   ./scripts/verify.sh           # existence + pod health
 #   ./scripts/verify.sh --deep    # also query Prometheus + resource budget
-#   ./scripts/verify.sh --edge-only  # edge checks only (CI Phase 3)
+#   ./scripts/verify.sh --edge-only  # edge checks only (CI Phase 4)
 #
 # Exits non-zero if any required object is missing or unhealthy.
 

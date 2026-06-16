@@ -2,12 +2,11 @@ name: Deploy GuardrailStudio Dev (Netra)
 
 # Installs Netra observability stack on guardrailstudio-dev, then Grafana edge.
 #
-# Job phases (explicit steps — not one opaque shell wrapper):
-#   1. Auth + GKE credentials
-#   2. Core stack (Helm + verify --deep)
-#   3. Preflight GSM secret shape + IAM
-#   4. Grafana edge (GSM → secrets → oauth2-proxy → ingress)
-#   5. Edge verify (--edge-only)
+# Phases (after auth + GKE creds):
+#   1. Core stack (Helm + verify --deep)
+#   2. Preflight Grafana edge GSM (readable + valid JSON shape)
+#   3. Apply Grafana edge (GSM → secrets → oauth2-proxy → ingress)
+#   4. Verify --edge-only
 #
 # Auth pattern (matches GuardrailStudio dev-release):
 #   1. REGISTRY_PASSWORD — bootstrap SA (secret-manager@…) from GitHub secret
@@ -121,17 +120,20 @@ jobs:
         run: |
           set -euo pipefail
           tmp="$(mktemp)"
-          trap 'rm -f "$tmp"' EXIT
+          err="$(mktemp)"
+          trap 'rm -f "$tmp" "$err"' EXIT
           if ! gcloud secrets versions access latest \
             --secret="${NETRA_GRAFANA_EDGE_GSM}" \
-            --project="${GCP_PROJECT}" >"$tmp" 2>/dev/null; then
-            echo "::error::Cannot read ${NETRA_GRAFANA_EDGE_GSM} — run grant-grafana-edge-gsm-access.sh dev"
+            --project="${GCP_PROJECT}" >"$tmp" 2>"$err"; then
+            echo "::error::Cannot read ${NETRA_GRAFANA_EDGE_GSM}"
+            sed 's/^/  gcloud: /' "$err" >&2
+            echo "::warning::If 403/PERMISSION_DENIED, run ./deploy/guardrailstudio/scripts/grant-grafana-edge-gsm-access.sh dev"
             exit 1
           fi
           # shellcheck source=deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
           source deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
           if ! validate_grafana_edge_json "$tmp"; then
-            echo "::error::Invalid ${NETRA_GRAFANA_EDGE_GSM} — need google_client_id, google_client_secret, cookie_secret (>=16), superadmin_emails"
+            echo "::error::Invalid ${NETRA_GRAFANA_EDGE_GSM} — need google_client_id, google_client_secret, cookie_secret (>=16), non-empty superadmin_emails (no REPLACE/YOUR_ placeholders)"
             exit 1
           fi
           echo "GSM preflight OK: ${NETRA_GRAFANA_EDGE_GSM}"

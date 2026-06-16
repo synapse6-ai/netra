@@ -174,7 +174,7 @@ when the pool was created via Terraform — still unlabels stray labels on app n
 
 ### Grafana edge DNS / TLS (two-phase)
 
-First deploy: Phase 2 prints ingress IP → add GoDaddy A record → re-run workflow
+First deploy: Phase 3 prints ingress IP → add GoDaddy A record → re-run workflow
 (or `./deploy/guardrailstudio/scripts/apply-grafana-edge.sh dev`) until
 `verify.sh --edge` reports TLS Ready.
 

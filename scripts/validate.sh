@@ -246,6 +246,11 @@ if [[ -d "$GS" ]]; then
     else
       fail "examples/netra-grafana-edge-secret.example.json failed validate_grafana_edge_json"
     fi
+    if validate_grafana_edge_json "$GS/examples/netra-grafana-edge-secret.invalid.json"; then
+      fail "examples/netra-grafana-edge-secret.invalid.json should be rejected by validate_grafana_edge_json"
+    else
+      ok "examples/netra-grafana-edge-secret.invalid.json correctly rejected (placeholder/short cookie/empty allowlist)"
+    fi
   else
     fail "missing scripts/lib/grafana-edge-json.sh"
   fi
