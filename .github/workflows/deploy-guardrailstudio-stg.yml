@@ -1,0 +1,155 @@
+name: Deploy GuardrailStudio Stg (Netra)
+
+# Installs Netra observability stack on guardrailstudio-stg, then Grafana edge.
+#
+# Phases (after auth + GKE creds):
+#   1. Core stack (Helm + verify --deep)
+#   2. Preflight Grafana edge GSM (readable + valid JSON shape)
+#   3. Apply Grafana edge (GSM → secrets → oauth2-proxy → ingress)
+#   4. Verify --edge-only
+#
+# Auth pattern (matches GuardrailStudio stg-release):
+#   1. REGISTRY_PASSWORD_STAGE — bootstrap SA (secret-manager@synapse6ai-stg) from GitHub secret
+#   2. github-netra-deploy-json — deploy SA from Secret Manager (container.admin)
+#
+# GSM secrets (synapse6ai-stg):
+#   synapse-secret-manager-json  — bootstrap (also in GitHub REGISTRY_PASSWORD_STAGE)
+#   github-netra-deploy-json     — Netra Helm/GKE deploy SA
+#   netra-grafana-edge-stg       — Grafana OAuth JSON (see deploy/guardrailstudio/examples/)
+#
+# Prereqs before first run:
+#   - GitHub secret REGISTRY_PASSWORD_STAGE (bootstrap SA JSON for synapse6ai-stg)
+#   - GCP OAuth Web client, redirect https://obs-stg.instantevidence.ai/oauth2/callback
+#   - netra-grafana-edge-stg GSM secret populated (cookie_secret, google_client_id/secret,
+#     superadmin_emails) — grant deploy SA access via grant-grafana-edge-gsm-access.sh stg
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_bootstrap:
+        description: Skip GCS bootstrap (already done)
+        type: boolean
+        default: true
+      skip_observability_pool:
+        description: Skip observability node pool create only (unlabel/wait still run)
+        type: boolean
+        default: false
+      skip_grafana_edge:
+        description: Skip oauth2-proxy + ingress (core stack only)
+        type: boolean
+        default: false
+      helm_timeout:
+        description: Helm --timeout per release (e.g. 45m)
+        type: string
+        default: 45m
+
+permissions:
+  contents: read
+
+env:
+  GCP_PROJECT: synapse6ai-stg
+  GKE_CLUSTER: guardrailstudio-stg
+  GKE_ZONE: us-central1-a
+  DEPLOY_SA_SECRET: github-netra-deploy-json
+  GRAFANA_EDGE_GSM: netra-grafana-edge-stg
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail fast when REGISTRY_PASSWORD_STAGE is missing
+        env:
+          REGISTRY_PASSWORD_STAGE: ${{ secrets.REGISTRY_PASSWORD_STAGE }}
+        run: |
+          if [ -z "${REGISTRY_PASSWORD_STAGE:-}" ]; then
+            echo "::error::Missing REGISTRY_PASSWORD_STAGE (bootstrap SA JSON — same as GuardrailStudio stg-release)."
+            exit 1
+          fi
+
+      - uses: google-github-actions/setup-gcloud@v3
+        with:
+          version: '556.0.0'
+          project_id: synapse6ai-stg
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Bootstrap GCP auth (Secret Manager reader)
+        env:
+          REGISTRY_PASSWORD_STAGE: ${{ secrets.REGISTRY_PASSWORD_STAGE }}
+        run: |
+          echo "$REGISTRY_PASSWORD_STAGE" > sa-bootstrap.raw
+          if [ "$(head -c1 sa-bootstrap.raw)" = "{" ]; then
+            mv sa-bootstrap.raw sa-bootstrap.json
+          else
+            base64 -d sa-bootstrap.raw > sa-bootstrap.json
+          fi
+          gcloud auth activate-service-account --key-file=sa-bootstrap.json
+
+      - name: Fetch Netra deploy SA from Secret Manager
+        run: |
+          gcloud secrets versions access latest \
+            --secret="${DEPLOY_SA_SECRET}" \
+            --project="${GCP_PROJECT}" > sa-deploy.json
+          gcloud auth activate-service-account --key-file=sa-deploy.json
+          rm -f sa-bootstrap.json sa-bootstrap.raw sa-deploy.json
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials "${GKE_CLUSTER}" \
+            --zone="${GKE_ZONE}" \
+            --project="${GCP_PROJECT}"
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Install jq and envsubst
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base dnsutils
+
+      - name: Bootstrap GCP (GCS + Workload Identity)
+        if: inputs.skip_bootstrap != true
+        run: PROJECT=synapse6ai-stg ./deploy/guardrailstudio/scripts/bootstrap-gcp.sh
+
+      - name: "Phase 1 — Install Netra core stack"
+        env:
+          HELM_TIMEOUT: ${{ inputs.helm_timeout }}
+          SKIP_OBSERVABILITY_POOL_CREATE: ${{ inputs.skip_observability_pool && 'true' || 'false' }}
+          SKIP_GRAFANA_EDGE: "true"
+        run: ./deploy/guardrailstudio/scripts/install-env.sh stg
+
+      - name: "Phase 2 — Preflight Grafana edge GSM secret"
+        if: inputs.skip_grafana_edge != true
+        env:
+          NETRA_GRAFANA_EDGE_GSM: ${{ env.GRAFANA_EDGE_GSM }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          err="$(mktemp)"
+          trap 'rm -f "$tmp" "$err"' EXIT
+          if ! gcloud secrets versions access latest \
+            --secret="${NETRA_GRAFANA_EDGE_GSM}" \
+            --project="${GCP_PROJECT}" >"$tmp" 2>"$err"; then
+            echo "::error::Cannot read ${NETRA_GRAFANA_EDGE_GSM}"
+            sed 's/^/  gcloud: /' "$err" >&2
+            echo "::warning::If 403/PERMISSION_DENIED, run ./deploy/guardrailstudio/scripts/grant-grafana-edge-gsm-access.sh stg"
+            exit 1
+          fi
+          # shellcheck source=deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
+          source deploy/guardrailstudio/scripts/lib/grafana-edge-json.sh
+          if ! validate_grafana_edge_json "$tmp"; then
+            echo "::error::Invalid ${NETRA_GRAFANA_EDGE_GSM} — need google_client_id, google_client_secret, cookie_secret (>=16), non-empty superadmin_emails (no REPLACE/YOUR_ placeholders)"
+            exit 1
+          fi
+          echo "GSM preflight OK: ${NETRA_GRAFANA_EDGE_GSM}"
+
+      - name: "Phase 3 — Apply Grafana edge (oauth2-proxy + ingress)"
+        if: inputs.skip_grafana_edge != true
+        env:
+          NETRA_GRAFANA_EDGE_GSM: ${{ env.GRAFANA_EDGE_GSM }}
+        run: ./deploy/guardrailstudio/scripts/apply-grafana-edge.sh stg
+
+      - name: "Phase 4 — Verify Grafana edge"
+        if: inputs.skip_grafana_edge != true
+        run: ./scripts/verify.sh --edge-only
