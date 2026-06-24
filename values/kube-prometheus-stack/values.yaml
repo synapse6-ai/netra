@@ -196,14 +196,20 @@ grafana:
       label: grafana_datasource
       labelValue: "1"
       searchNamespace: observability
+      # Our datasources (manifests/grafana/datasources-configmap.yaml) define
+      # the default Prometheus (uid netra-prometheus). Don't let the chart also
+      # provision its own default Prometheus — two isDefault:true datasources
+      # make Grafana abort provisioning ("Only one datasource per organization
+      # can be marked as default") and CrashLoop.
+      defaultDatasourceEnabled: false
 
-  # Datasources are also shipped as a ConfigMap under
-  # manifests/grafana/datasources-configmap.yaml. Disable the chart's own
-  # built-in datasources block.
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources: []
+  # Datasources ship as a ConfigMap (manifests/grafana/datasources-configmap.yaml)
+  # picked up by the sidecar above. Leave the chart's built-in datasources block
+  # EMPTY ({}), not `{datasources.yaml: {datasources: []}}`: the latter still makes
+  # the chart render a datasources.yaml and subPath-mount it into the same dir the
+  # sidecar mounts as an emptyDir. That mount collision yields a 0-byte
+  # datasources.yaml, which Grafana 13 rejects ("data source not found").
+  datasources: {}
 
   grafana.ini:
     server:
