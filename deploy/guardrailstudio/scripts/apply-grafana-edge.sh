@@ -103,7 +103,7 @@ sync_secrets_from_json() {
 
   client_id="$(echo "$json" | jq -r '.google_client_id // .client_id // .["client-id"] // empty')"
   client_secret="$(echo "$json" | jq -r '.google_client_secret // .client_secret // .["client-secret"] // empty')"
-  cookie_secret="$(echo "$json" | jq -r '.cookie_secret // .cookie-secret // empty')"
+  cookie_secret="$(echo "$json" | jq -r '.cookie_secret // .["cookie-secret"] // empty')"
   if [[ -z "$client_id" || -z "$client_secret" || -z "$cookie_secret" ]]; then
     die "Grafana edge JSON must include google_client_id, google_client_secret, and cookie_secret"
   fi
