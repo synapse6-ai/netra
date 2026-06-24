@@ -387,6 +387,85 @@ helm_values_kps() {
   echo "${args[@]}"
 }
 
+# Package Netra dashboards into per-folder ConfigMaps (netra-dash-<slug>) that the
+# grafana chart mounts via dashboardsConfigMaps and provisions through providers
+# with PINNED folderUids (see values/kube-prometheus-stack/values.yaml). Pinned
+# UIDs make Grafana reconcile folders by UID, so they can never duplicate. The
+# chart mounts these as required volumes, so this MUST run before the grafana pod
+# starts (i.e. before helm_release_kps).
+package_dashboard_cms() {
+  say "Packaging Netra dashboards into per-folder ConfigMaps"
+  local dashboard_dirs=("$DASHBOARDS_DIR")
+  if [[ -n "${NETRA_EXTRA_DASHBOARDS_DIR:-}" && -d "$NETRA_EXTRA_DASHBOARDS_DIR" ]]; then
+    dashboard_dirs+=("$NETRA_EXTRA_DASHBOARDS_DIR")
+  fi
+
+  local staging
+  staging="$(mktemp -d)"
+
+  local DASH_DIR f title leaf slug
+  shopt -s nullglob
+  for DASH_DIR in "${dashboard_dirs[@]}"; do
+    for f in "$DASH_DIR"/*.json; do
+      jq empty "$f"
+      title="$(jq -r '.title // ""' "$f")"
+      # Folder = 2nd " / "-separated title segment:
+      #   "Netra / Platform / Loki health" -> Platform ; "Netra / OPA" -> OPA
+      if [[ "$title" == *" / "* ]]; then
+        leaf="$(printf '%s' "$title" | awk -F' / ' '{print $2}')"
+      else
+        leaf="Netra"
+      fi
+      slug="$(printf '%s' "$leaf" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//')"
+      mkdir -p "$staging/$slug"
+      cp "$f" "$staging/$slug/$(basename "$f")"
+    done
+  done
+  shopt -u nullglob
+
+  local d cm expected=()
+  for d in "$staging"/*/; do
+    [[ -d "$d" ]] || continue
+    slug="$(basename "$d")"
+    cm="netra-dash-$slug"
+    expected+=("$cm")
+    kubectl create configmap "$cm" \
+      --namespace "$NS" \
+      --from-file="$d" \
+      --dry-run=client -o yaml | \
+      kubectl label --local -f - \
+        app.kubernetes.io/part-of=netra \
+        netra-dashboard-folder="$slug" \
+        --dry-run=client -o yaml | \
+      kubectl apply -f -
+  done
+  rm -rf "$staging"
+
+  # Prune per-folder CMs for folders that no longer exist in Git.
+  local line name keep e
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="${line#configmap/}"
+    keep=0
+    for e in "${expected[@]}"; do
+      [[ "$name" == "$e" ]] && { keep=1; break; }
+    done
+    [[ "$keep" -eq 0 ]] && kubectl delete configmap -n "$NS" "$name" --ignore-not-found
+  done < <(kubectl get configmap -n "$NS" -l netra-dashboard-folder -o name 2>/dev/null || true)
+
+  # Remove LEGACY sidecar dashboard CMs (grafana_dashboard=1). They provisioned
+  # Netra dashboards into duplicate/stale folders via the sidecar; deleting them
+  # lets the sidecar prune those dashboards so the emptied legacy folders can be
+  # swept (scripts run the grafana-folder-cleanup Job). The chart's own
+  # kube-prometheus-stack dashboards are NOT part-of=netra, so they're untouched.
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="${line#configmap/}"
+    kubectl delete configmap -n "$NS" "$name" --ignore-not-found
+  done < <(kubectl get configmap -n "$NS" \
+    -l grafana_dashboard=1,app.kubernetes.io/part-of=netra -o name 2>/dev/null || true)
+}
+
 NETRA_CLUSTER="$(resolve_cluster)"
 say "Cluster identity: ${NETRA_CLUSTER}"
 write_cluster_overrides "$NETRA_CLUSTER"
@@ -425,6 +504,10 @@ kubectl create configmap netra-grafana-branding \
   --namespace "$NS" \
   --from-file=grafana_icon.svg="$REPO_ROOT/brand/netra-symbol-white.svg" \
   --dry-run=client -o yaml | kubectl apply -f -
+
+# Dashboards must exist as ConfigMaps before the grafana pod starts: the chart
+# mounts netra-dash-<slug> as required volumes (dashboardsConfigMaps).
+package_dashboard_cms
 
 # -------------------------------------------------------------------------
 # 3. Helm releases
@@ -513,60 +596,10 @@ if [[ -n "${NETRA_EXTRA_MANIFESTS:-}" && -d "$NETRA_EXTRA_MANIFESTS" ]]; then
 fi
 
 # -------------------------------------------------------------------------
-# 5. Dashboards -> ConfigMaps (grafana_dashboard=1)
+# 5. Dashboards
 # -------------------------------------------------------------------------
-say "Packaging dashboards into ConfigMaps"
-
-expected_cms=()
-dashboard_dirs=("$DASHBOARDS_DIR")
-if [[ -n "${NETRA_EXTRA_DASHBOARDS_DIR:-}" && -d "$NETRA_EXTRA_DASHBOARDS_DIR" ]]; then
-  dashboard_dirs+=("$NETRA_EXTRA_DASHBOARDS_DIR")
-fi
-shopt -s nullglob
-for DASH_DIR in "${dashboard_dirs[@]}"; do
-  for f in "$DASH_DIR"/*.json; do
-    base="$(basename "$f" .json)"
-    cm_name="netra-dashboard-$base"
-    expected_cms+=("$cm_name")
-
-    jq empty "$f"
-
-    title="$(jq -r '.title // ""' "$f")"
-    if [[ "$title" == *" / "* ]]; then
-      folder="$(echo "$title" | awk -F' / ' '{print $1" / "$2}')"
-    else
-      folder="Netra"
-    fi
-
-    kubectl create configmap "$cm_name" \
-      --namespace "$NS" \
-      --from-file="$base.json=$f" \
-      --dry-run=client -o yaml | \
-      kubectl label --local -f - \
-        grafana_dashboard=1 \
-        app.kubernetes.io/part-of=netra \
-        --dry-run=client -o yaml | \
-      kubectl annotate --local -f - \
-        grafana_folder="$folder" \
-        --dry-run=client -o yaml | \
-      kubectl apply -f -
-  done
-done
-shopt -u nullglob
-
-say "Removing stale dashboard ConfigMaps"
-while IFS= read -r cm; do
-  [[ -z "$cm" ]] && continue
-  name="${cm#configmap/}"
-  keep=0
-  for e in "${expected_cms[@]}"; do
-    if [[ "$name" == "$e" ]]; then keep=1; break; fi
-  done
-  if [[ "$keep" -eq 0 ]]; then
-    kubectl delete configmap -n "$NS" "$name" --ignore-not-found
-  fi
-done < <(kubectl get configmap -n "$NS" \
-  -l grafana_dashboard=1,app.kubernetes.io/part-of=netra \
-  -o name 2>/dev/null || true)
+# Netra dashboards are packaged into per-folder ConfigMaps with pinned folderUids
+# by package_dashboard_cms (called pre-helm above, since the chart mounts them as
+# required volumes). Nothing to do here.
 
 say "Done. Run scripts/verify.sh (or scripts/verify.sh --deep) to check cluster state."

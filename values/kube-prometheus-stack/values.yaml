@@ -217,6 +217,76 @@ grafana:
   # datasources.yaml, which Grafana 13 rejects ("data source not found").
   datasources: {}
 
+  # Netra's own dashboards are provisioned via dedicated providers with PINNED
+  # folderUids. Grafana reconciles provisioned folders by UID, so these folders
+  # can NEVER duplicate — unlike the sidecar + foldersFromFilesStructure path,
+  # which silently created hundreds of duplicate "Platform"/"OPA" folders that
+  # then could not be deleted (they held provisioned dashboards). The sidecar
+  # above is retained ONLY for the chart's built-in kube-prometheus-stack
+  # dashboards, which land in the General folder.
+  #
+  # Each provider reads /var/lib/grafana/dashboards/<name>, mounted from the
+  # matching ConfigMap in dashboardsConfigMaps below. Those ConfigMaps
+  # (netra-dash-<slug>) are built by scripts/install.sh:package_dashboard_cms
+  # and MUST exist before this pod starts (the chart mounts them as required
+  # volumes). Adding a new folder = add a provider here + a mapping below.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: netra-platform
+          orgId: 1
+          folder: Platform
+          folderUid: netra-platform
+          type: file
+          disableDeletion: false
+          allowUiUpdates: false
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards/netra-platform
+            foldersFromFilesStructure: false
+        - name: netra-services
+          orgId: 1
+          folder: Services
+          folderUid: netra-services
+          type: file
+          disableDeletion: false
+          allowUiUpdates: false
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards/netra-services
+            foldersFromFilesStructure: false
+        - name: netra-opa
+          orgId: 1
+          folder: OPA
+          folderUid: netra-opa
+          type: file
+          disableDeletion: false
+          allowUiUpdates: false
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards/netra-opa
+            foldersFromFilesStructure: false
+        - name: netra-rum
+          orgId: 1
+          folder: RUM
+          folderUid: netra-rum
+          type: file
+          disableDeletion: false
+          allowUiUpdates: false
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards/netra-rum
+            foldersFromFilesStructure: false
+
+  # Maps provider name -> ConfigMap; chart mounts each at
+  # /var/lib/grafana/dashboards/<provider name>.
+  dashboardsConfigMaps:
+    netra-platform: netra-dash-platform
+    netra-services: netra-dash-services
+    netra-opa: netra-dash-opa
+    netra-rum: netra-dash-rum
+
   grafana.ini:
     server:
       root_url: "%(protocol)s://%(domain)s/"
