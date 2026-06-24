@@ -190,7 +190,13 @@ grafana:
       searchNamespace: observability
       folderAnnotation: grafana_folder
       provider:
-        foldersFromFilesStructure: true
+        # MUST stay false. With foldersFromFilesStructure: true the file
+        # provider re-derives folders on every updateInterval scan (30s) and
+        # Grafana does not reconcile them by name — it creates NEW folders each
+        # pass. That silently multiplied into 500+ empty duplicate "Platform"/
+        # "OPA" folders. False = dashboards load into a single (General) folder,
+        # stable across scans.
+        foldersFromFilesStructure: false
     datasources:
       enabled: true
       label: grafana_datasource
