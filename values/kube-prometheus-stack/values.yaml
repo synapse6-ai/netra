@@ -237,7 +237,11 @@ grafana:
         - name: netra-platform
           orgId: 1
           folder: Platform
-          folderUid: netra-platform
+          # folderUid MUST be namespaced away from dashboard UIDs. A folder and a
+          # dashboard sharing a UID makes Grafana's nested-folder Browse tree treat
+          # the folder as a child of itself -> infinite recursion -> the frontend
+          # crashes with "Maximum call stack size exceeded" on folder expand.
+          folderUid: netra-folder-platform
           type: file
           disableDeletion: false
           allowUiUpdates: false
@@ -248,7 +252,7 @@ grafana:
         - name: netra-services
           orgId: 1
           folder: Services
-          folderUid: netra-services
+          folderUid: netra-folder-services
           type: file
           disableDeletion: false
           allowUiUpdates: false
@@ -259,7 +263,7 @@ grafana:
         - name: netra-opa
           orgId: 1
           folder: OPA
-          folderUid: netra-opa
+          folderUid: netra-folder-opa
           type: file
           disableDeletion: false
           allowUiUpdates: false
@@ -270,7 +274,7 @@ grafana:
         - name: netra-rum
           orgId: 1
           folder: RUM
-          folderUid: netra-rum
+          folderUid: netra-folder-rum
           type: file
           disableDeletion: false
           allowUiUpdates: false
