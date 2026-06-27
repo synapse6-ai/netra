@@ -127,8 +127,13 @@ monitoring:
     enabled: false
     grafanaAgent:
       installOperator: false
-  lokiCanary:
-    enabled: false
+
+# lokiCanary is a TOP-LEVEL chart key (default: enabled). It was previously set
+# under monitoring.lokiCanary, which this chart ignores — so the canary kept
+# running and flooding Loki with synthetic "unknown_service" lines (a ns
+# timestamp + a run of 'p' chars) that polluted Logs Drilldown. Disable it here.
+lokiCanary:
+  enabled: false
 
 # We use Alloy for log shipping. Promtail must stay off.
 test:
