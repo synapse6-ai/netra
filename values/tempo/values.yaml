@@ -23,10 +23,12 @@ tempo:
   resources:
     requests:
       cpu: 150m
-      memory: 384Mi
+      memory: 512Mi
     limits:
       cpu: 500m
-      memory: 768Mi
+      # 768Mi OOMKilled netra-tempo-0 on a ~3-day cycle as ingest/WAL/query
+      # memory grew. Raised to give headroom for the single-binary deployment.
+      memory: 2Gi
 
   storage:
     trace:
