@@ -1,0 +1,477 @@
+{
+  "uid": "netra-decisions",
+  "title": "Netra / Services / Decisions",
+  "tags": [
+    "netra",
+    "services",
+    "decisions"
+  ],
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": true,
+  "liveNow": false,
+  "graphTooltip": 1,
+  "fiscalYearStartMonth": 0,
+  "timezone": "",
+  "weekStart": "",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "netra-prometheus"
+        },
+        "definition": "label_values(decision_engine_evaluate_total, environment)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(decision_engine_evaluate_total, environment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "multi": false,
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Decisions /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Permitted %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "100 * sum(rate(decision_engine_evaluate_total{environment=~\"$environment\", outcome=\"Permitted\"}[5m])) / clamp_min(sum(rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m])), 0.0001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Withhold + Exception %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "100 * sum(rate(decision_engine_evaluate_total{environment=~\"$environment\", outcome=~\"Withhold|Exception\"}[5m])) / clamp_min(sum(rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m])), 0.0001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Unresolved %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "100 * sum(rate(decision_engine_evaluate_total{environment=~\"$environment\", outcome=\"Unresolved\"}[5m])) / clamp_min(sum(rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m])), 0.0001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Decisions by outcome",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 4
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum by (outcome) (rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Outcome mix (range)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "pieType": "donut"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum by (outcome) (increase(decision_engine_evaluate_total{environment=~\"$environment\"}[$__range]))",
+          "refId": "A",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Decision latency (quantiles)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15
+          },
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(decision_engine_evaluate_duration_seconds_bucket{environment=~\"$environment\"}[5m])))",
+          "refId": "A",
+          "legendFormat": "p50"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(decision_engine_evaluate_duration_seconds_bucket{environment=~\"$environment\"}[5m])))",
+          "refId": "B",
+          "legendFormat": "p95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(decision_engine_evaluate_duration_seconds_bucket{environment=~\"$environment\"}[5m])))",
+          "refId": "C",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Permitted ratio over time",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15
+          },
+          "unit": "percent"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "100 * sum(rate(decision_engine_evaluate_total{environment=~\"$environment\", outcome=\"Permitted\"}[5m])) / clamp_min(sum(rate(decision_engine_evaluate_total{environment=~\"$environment\"}[5m])), 0.0001)",
+          "refId": "A",
+          "legendFormat": "Permitted %"
+        }
+      ]
+    }
+  ]
+}
