@@ -16,9 +16,10 @@ discovery.kubernetes "pods" {
 // -------------------------------------------------------------------
 // Logs: pod stdout/stderr -> Loki.
 //
-// Allowed (low-cardinality) labels:
-//   environment, namespace, service_name, pod, container, level,
-//   cluster, team
+// Allowed labels (all are functions of `pod`, which is already a label, so
+// they add no meaningful stream cardinality but make k8s/Docker context rich):
+//   environment, namespace, service_name, pod, container, node, image,
+//   component, instance, level, cluster, team
 //
 // Forbidden as labels (kept inside the JSON body / structured metadata):
 //   request_id, trace_id, span_id, user_id, event_id, email,
@@ -39,9 +40,40 @@ discovery.relabel "pod_logs" {
     source_labels = ["__meta_kubernetes_pod_container_name"]
     target_label  = "container"
   }
+  // service_name: prefer app.kubernetes.io/name, then the `app` label, then the
+  // controller (Deployment/StatefulSet/DaemonSet), then the container name.
+  // Without the fallbacks every pod missing app.kubernetes.io/name collapsed to
+  // "unknown_service" (kube-system, gke, canary, ...).
   rule {
-    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
-    target_label  = "service_name"
+    source_labels = [
+      "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+      "__meta_kubernetes_pod_label_app",
+      "__meta_kubernetes_pod_controller_name",
+      "__meta_kubernetes_pod_container_name",
+    ]
+    separator    = ";"
+    regex        = ";*([^;]+).*"
+    replacement  = "$1"
+    target_label = "service_name"
+  }
+  // Node the pod is scheduled on.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "node"
+  }
+  // Container (Docker) image + tag.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_image"]
+    target_label  = "image"
+  }
+  // Standard app.kubernetes.io/* context.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+    target_label  = "component"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_instance"]
+    target_label  = "instance"
   }
   rule {
     source_labels = ["__meta_kubernetes_pod_label_team"]
@@ -65,13 +97,28 @@ loki.source.kubernetes "pods" {
 loki.process "app_logs" {
   forward_to = [loki.write.default.receiver]
 
+  // Pull fields out of the structured (JSON) log body.
   stage.json {
     expressions = {
-      level = "level",
+      level      = "level",
+      trace_id   = "trace_id",
+      span_id    = "span_id",
+      request_id = "request_id",
     }
   }
+  // level is low-cardinality -> an indexed label.
   stage.labels {
     values = { level = "" }
+  }
+  // High-cardinality correlation IDs -> structured metadata (queryable in
+  // Drilldown / used for log<->trace correlation), NOT indexed labels.
+  // Requires loki limits_config.allow_structured_metadata: true (already on).
+  stage.structured_metadata {
+    values = {
+      trace_id   = "",
+      span_id    = "",
+      request_id = "",
+    }
   }
 }
 
