@@ -1,0 +1,700 @@
+{
+  "uid": "netra-event-pipeline",
+  "title": "Netra / Services / Event Pipeline",
+  "tags": [
+    "netra",
+    "services",
+    "pipeline"
+  ],
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": true,
+  "liveNow": false,
+  "graphTooltip": 1,
+  "fiscalYearStartMonth": 0,
+  "timezone": "",
+  "weekStart": "",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "netra-prometheus"
+        },
+        "definition": "label_values(event_processing_started_total, environment)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(event_processing_started_total, environment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "multi": false,
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      },
+      {
+        "name": "service",
+        "label": "service",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "netra-prometheus"
+        },
+        "definition": "label_values(event_processing_started_total{environment=~\"$environment\"}, service)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(event_processing_started_total{environment=~\"$environment\"}, service)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      },
+      {
+        "name": "stage",
+        "label": "stage",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "netra-prometheus"
+        },
+        "definition": "label_values(event_processing_started_total{environment=~\"$environment\", service=~\"$service\"}, stage)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(event_processing_started_total{environment=~\"$environment\", service=~\"$service\"}, stage)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1,
+        "sort": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "hide": 0,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Started /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_started_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Completed /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_completed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Failed /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_failed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Success ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "100 * sum(rate(event_processing_completed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m])) / clamp_min(sum(rate(event_processing_started_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m])), 0.001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Pipeline throughput",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_started_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "Started"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_completed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "B",
+          "legendFormat": "Completed"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_failed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "C",
+          "legendFormat": "Failed"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(event_processing_retry_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "D",
+          "legendFormat": "Retried"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Stage latency p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (stage, le) (rate(event_processing_stage_duration_seconds_bucket{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m])))",
+          "refId": "A",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Queue depth by stage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum by (stage) (event_queue_depth{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"})",
+          "refId": "A",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Oldest queued job age",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "max by (stage) (event_queue_oldest_job_age_seconds{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"})",
+          "refId": "A",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Normalizer vs Evaluator /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 20
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(normalizer_processed_total{service=~\"$service\", environment=~\"$environment\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "Normalizer"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum(rate(evaluator_processed_total{service=~\"$service\", environment=~\"$environment\"}[5m]))",
+          "refId": "B",
+          "legendFormat": "Evaluator"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Receipts inserted /s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 20
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum by (status) (rate(receipt_inserted_total{service=~\"$service\", environment=~\"$environment\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Failures by stage / status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "netra-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 20
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          },
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "netra-prometheus"
+          },
+          "expr": "sum by (stage, status) (rate(event_processing_failed_total{service=~\"$service\", environment=~\"$environment\", stage=~\"$stage\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{stage}} / {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "logs",
+      "title": "Recent pipeline errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "netra-loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "netra-loki"
+          },
+          "expr": "{environment=~\"$environment\", service_name=~\"$service\"} |= `error`",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

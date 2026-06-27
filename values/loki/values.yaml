@@ -71,6 +71,11 @@ loki:
     limits_config:
       allow_structured_metadata: true
       volume_enabled: true
+    # Pattern ingester powers the Logs Drilldown "Patterns" tab — Datadog-style
+    # automatic grouping of log lines into templates. Without it the endpoint
+    # /loki/api/v1/patterns returns 404 and the Patterns tab stays empty.
+    pattern_ingester:
+      enabled: true
 
 singleBinary:
   replicas: 1
